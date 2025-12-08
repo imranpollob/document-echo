@@ -22,16 +22,15 @@ body {
 }
 
 /* PDF highlighting styles */
-sentence-highlight {
-  display: inline;
+.textLayer span[role="presentation"].segment-span {
   transition: background-color 0.2s ease;
   cursor: pointer;
 }
 
-sentence-highlight:hover {
+.textLayer span[role="presentation"].segment-span:hover {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-sentence-highlight.playing {
+.textLayer span[role="presentation"].playing {
   background-color: rgba(255, 255, 0, 0.4) !important;
 }

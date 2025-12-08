@@ -35,6 +35,9 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     const { segments, apiKey, audioCache } = get();
     if (index < 0 || index >= segments.length) return;
 
+    // Stop any ongoing playback immediately
+    set({ playbackStatus: 'paused' });
+
     set({ currentSegmentIndex: index, playbackStatus: 'loading' });
     
     // Trigger prefetch for next segments if API key is present

@@ -56,16 +56,7 @@ export default function Home() {
   const resume = useAudioStore(state => state.resume);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
 
-  // Auto-load hello.pdf for testing
-  useEffect(() => {
-    fetch('/hello.pdf')
-      .then(res => res.blob())
-      .then(blob => {
-        const file = new File([blob], 'hello.pdf', { type: 'application/pdf' });
-        setFile(file);
-      })
-      .catch(err => console.error('Failed to load default PDF:', err));
-  }, []);
+  // Removed auto-load of default PDF; user must choose a file.
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {

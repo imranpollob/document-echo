@@ -50,8 +50,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     loadPdf();
   }, [file]);
 
-  // Helper function to wrap sentences in custom highlight elements
-  const wrapSentencesInTextLayer = (
+  // Attach segment metadata directly to presentation spans (no wrapper element)
+  const tagSentencesInTextLayer = (
     textLayerDiv: HTMLDivElement,
     segments: TextSegment[],
     pageNumber: number,
@@ -61,6 +61,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
     presentationSpans.forEach((span) => {
       const htmlSpan = span as HTMLElement;
+      htmlSpan.classList.add('segment-span');
+
       const textContent = htmlSpan.textContent || '';
 
       if (!textContent.trim()) return;
@@ -72,18 +74,11 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
           if (segmentText.includes(spanText) || spanText.includes(segmentText)) {
             const segmentIndex = segmentOffset + index;
-            if (htmlSpan.querySelector('sentence-highlight')) return;
+            if (htmlSpan.dataset.segmentIndex) return;
 
-            const wrapper = document.createElement('sentence-highlight');
-            wrapper.setAttribute('data-segment-index', segmentIndex.toString());
-            wrapper.setAttribute('data-page', pageNumber.toString());
-            wrapper.className = `segment-${segmentIndex}`;
-
-            while (htmlSpan.firstChild) {
-              wrapper.appendChild(htmlSpan.firstChild);
-            }
-
-            htmlSpan.appendChild(wrapper);
+            htmlSpan.dataset.segmentIndex = segmentIndex.toString();
+            htmlSpan.dataset.page = pageNumber.toString();
+            htmlSpan.classList.add('segment-span');
           }
         }
       });
@@ -155,13 +150,13 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             textLayerDiv.appendChild(textLayer.div.firstChild);
           }
 
-          // Wrap sentences
-          wrapSentencesInTextLayer(textLayerDiv, segments, pageNum, segmentOffset);
+          // Tag sentences for interaction/highlighting
+          tagSentencesInTextLayer(textLayerDiv, segments, pageNum, segmentOffset);
 
           // Add click handler
           textLayerDiv.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
-            const sentenceEl = target.closest('sentence-highlight');
+            const sentenceEl = target.closest('span[role="presentation"]');
 
             if (sentenceEl) {
               const segmentIndex = parseInt(sentenceEl.getAttribute('data-segment-index') || '-1');
@@ -190,16 +185,16 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   // Sync Highlight with Playback
   useEffect(() => {
     // Always clear old state
-    document.querySelectorAll('sentence-highlight.playing').forEach(el => {
+    document.querySelectorAll('span[role="presentation"].playing').forEach(el => {
       el.classList.remove('playing');
     });
 
-    // Only highlight while actively playing/paused
-    if (!segments.length || playbackStatus === 'idle' || playbackStatus === 'loading') return;
+    // Only highlight when a segment is selected (any non-idle status)
+    if (!segments.length || playbackStatus === 'idle') return;
 
     if (currentSegmentIndex >= 0 && currentSegmentIndex < segments.length) {
       const currentElements = document.querySelectorAll(
-        `sentence-highlight[data-segment-index="${currentSegmentIndex}"]`
+        `span[role="presentation"][data-segment-index="${currentSegmentIndex}"]`
       );
       currentElements.forEach(el => el.classList.add('playing'));
     }
