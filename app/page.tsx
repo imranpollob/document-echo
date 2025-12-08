@@ -52,11 +52,34 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const setApiKey = useAudioStore(state => state.setApiKey);
   const play = useAudioStore(state => state.play);
+  const pause = useAudioStore(state => state.pause);
+  const resume = useAudioStore(state => state.resume);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
+
+  // Auto-load hello.pdf for testing
+  useEffect(() => {
+    fetch('/hello.pdf')
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'hello.pdf', { type: 'application/pdf' });
+        setFile(file);
+      })
+      .catch(err => console.error('Failed to load default PDF:', err));
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+    }
+  };
+
+  const handlePlayPause = () => {
+    if (playbackStatus === 'playing') {
+      pause();
+    } else if (playbackStatus === 'paused') {
+      resume();
+    } else {
+      play();
     }
   };
 
@@ -85,11 +108,11 @@ export default function Home() {
 
       <div className="flex gap-4">
         <button
-          onClick={play}
-          disabled={!file || playbackStatus === 'playing'}
-          className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
+          onClick={handlePlayPause}
+          disabled={!file}
+          className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 min-w-[100px]"
         >
-          {playbackStatus === 'playing' ? 'Playing...' : 'Play'}
+          {playbackStatus === 'playing' ? 'Pause' : playbackStatus === 'loading' ? 'Loading...' : 'Play'}
         </button>
         <div className="text-sm self-center">Status: {playbackStatus}</div>
       </div>

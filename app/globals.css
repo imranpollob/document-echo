@@ -19,3 +19,18 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* PDF highlighting styles */
+sentence-highlight {
+  display: inline;
+  transition: background-color 0.2s ease;
+  cursor: pointer;
+}
+
+sentence-highlight:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+sentence-highlight.playing {
+  background-color: rgba(255, 255, 0, 0.4) !important;
+}

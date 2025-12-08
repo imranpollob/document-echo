@@ -28,7 +28,9 @@ export interface AudioState {
   playSegment: (index: number) => Promise<void>;
   prefetchSegment: (index: number) => Promise<void>;
   
-  // Additional actions from instructions step 3
+  // Controls
+  play: () => void;
+  pause: () => void;
+  resume: () => void;
   next: () => void;
-  play: () => void; // redundant with playSegment but kept for compatibility with instructions
 }

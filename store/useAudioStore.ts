@@ -109,6 +109,18 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       const { currentSegmentIndex, playSegment } = get();
       playSegment(currentSegmentIndex);
   },
+  
+  pause: () => {
+      set({ playbackStatus: 'paused' });
+  },
+  
+  resume: () => {
+     // If we were paused, just set to playing. 
+     // AudioEngine *should* pick this up. 
+     // Note: This might restart the sentence depending on AudioEngine implementation.
+     // For MVP this is acceptable.
+     set({ playbackStatus: 'playing' });
+  },
 
   prefetchSegment: async (index: number) => {
        const { segments, apiKey, audioCache } = get();

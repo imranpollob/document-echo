@@ -8,6 +8,7 @@ import { TextLayerBuilder } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import { TextNormalizer } from '../utils/TextNormalizer';
 import { useAudioStore } from '../store/useAudioStore';
+import type { TextSegment } from '../types';
 
 // Set worker src
 pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
@@ -17,172 +18,202 @@ interface PdfViewerProps {
 }
 
 export const PdfViewer = ({ file }: PdfViewerProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const textLayerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Store actions
   const loadSegments = useAudioStore(state => state.loadSegments);
+  const playSegment = useAudioStore(state => state.playSegment);
+  const segments = useAudioStore(state => state.segments);
+  const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
 
+  // Load PDF document
   useEffect(() => {
     if (!file) return;
 
     const loadPdf = async () => {
-      const arrayBuffer = await file.arrayBuffer();
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-      const doc = await loadingTask.promise;
-      setPdfDocument(doc);
-      setCurrentPage(1);
+      setIsLoading(true);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        setPdfDocument(pdf);
+      } catch (error) {
+        console.error('Error loading PDF:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadPdf();
   }, [file]);
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  const renderTaskRef = useRef<any>(null);
+  // Helper function to wrap sentences in custom highlight elements
+  const wrapSentencesInTextLayer = (
+    textLayerDiv: HTMLDivElement,
+    segments: TextSegment[],
+    pageNumber: number
+  ) => {
+    const presentationSpans = textLayerDiv.querySelectorAll('span[role="presentation"]');
 
-  useEffect(() => {
-    if (!pdfDocument) return;
+    presentationSpans.forEach((span) => {
+      const htmlSpan = span as HTMLElement;
+      const textContent = htmlSpan.textContent || '';
 
-    const renderPage = async () => {
-      // Cancel previous render
-      if (renderTaskRef.current) {
-        try {
-          await renderTaskRef.current.cancel();
-        } catch (e) {
-          // Ignore cancel errors
+      if (!textContent.trim()) return;
+
+      segments.forEach((segment, index) => {
+        if (segment.pageNumber === pageNumber) {
+          const segmentText = segment.text.trim();
+          const spanText = textContent.trim();
+
+          if (segmentText.includes(spanText) || spanText.includes(segmentText)) {
+            if (htmlSpan.querySelector('sentence-highlight')) return;
+
+            const wrapper = document.createElement('sentence-highlight');
+            wrapper.setAttribute('data-segment-index', index.toString());
+            wrapper.setAttribute('data-page', pageNumber.toString());
+            wrapper.className = `segment-${index}`;
+
+            while (htmlSpan.firstChild) {
+              wrapper.appendChild(htmlSpan.firstChild);
+            }
+
+            htmlSpan.appendChild(wrapper);
+          }
         }
-      }
+      });
+    });
+  };
 
-      const page = await pdfDocument.getPage(currentPage);
+  // Render all pages
+  useEffect(() => {
+    if (!pdfDocument || !containerRef.current) return;
 
-      const viewport = page.getViewport({ scale: 1.5 });
+    const renderAllPages = async () => {
+      const container = containerRef.current;
+      if (!container) return;
 
-      // Render Canvas
-      const canvas = canvasRef.current;
-      const context = canvas?.getContext('2d');
-      if (canvas && context) {
+      container.innerHTML = ''; // Clear previous content
+
+      const allSegments: TextSegment[] = [];
+
+      // Render each page
+      for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        // Create page container
+        const pageContainer = document.createElement('div');
+        pageContainer.className = 'pdf-page-container';
+        pageContainer.style.position = 'relative';
+        pageContainer.style.marginBottom = '20px';
+        pageContainer.style.width = `${viewport.width}px`;
+
+        // Create canvas for the page
+        const canvas = document.createElement('canvas');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
+        canvas.className = 'block';
 
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport,
-        };
-
-        // @ts-ignore
-        const renderTask = page.render(renderContext);
-        renderTaskRef.current = renderTask;
-
-        try {
-          await renderTask.promise;
-        } catch (error: any) {
-          if (error?.name === 'RenderingCancelledException') {
-            return; // Cancelled
-          }
-          console.error("Render error", error);
+        const context = canvas.getContext('2d');
+        if (context) {
+          await page.render({
+            canvasContext: context,
+            viewport: viewport,
+          }).promise;
         }
-      }
 
-      // Render Text Layer
-      const container = textLayerRef.current;
-      if (container) {
-        container.innerHTML = ''; // Clear previous
-        // We don't set styles on container, we let textLayer do it or we wrap it.
-        // Actually we need to size the container to match viewport so absolute positioning works.
-        container.style.height = `${viewport.height}px`;
-        container.style.width = `${viewport.width}px`;
-        container.style.setProperty('--scale-factor', `${viewport.scale}`);
+        pageContainer.appendChild(canvas);
 
+        // Create text layer
         const textContent = await page.getTextContent();
+        const segments = TextNormalizer.normalize(textContent.items, pageNum);
+        allSegments.push(...segments);
 
-        // Extract and Normalize Text (Step 2)
-        const segments = TextNormalizer.normalize(textContent.items, currentPage);
-        // Avoid setting state if we are unmounted or cancelled? 
-        // Zustand set is safe, but logic might be weird if fast switching.
-        loadSegments(segments);
+        const textLayerDiv = document.createElement('div');
+        textLayerDiv.className = 'textLayer';
+        textLayerDiv.style.position = 'absolute';
+        textLayerDiv.style.top = '0';
+        textLayerDiv.style.left = '0';
+        textLayerDiv.style.width = `${viewport.width}px`;
+        textLayerDiv.style.height = `${viewport.height}px`;
 
-        // Use TextLayerBuilder
         const textLayer = new TextLayerBuilder({
           pdfPage: page,
         });
 
-        // Render returns a promise
         await textLayer.render({ viewport });
 
         if (textLayer.div) {
-          container.appendChild(textLayer.div);
+          // Copy children to our custom div
+          while (textLayer.div.firstChild) {
+            textLayerDiv.appendChild(textLayer.div.firstChild);
+          }
+
+          // Wrap sentences
+          wrapSentencesInTextLayer(textLayerDiv, segments, pageNum);
+
+          // Add click handler
+          textLayerDiv.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+            const sentenceEl = target.closest('sentence-highlight');
+
+            if (sentenceEl) {
+              const segmentIndex = parseInt(sentenceEl.getAttribute('data-segment-index') || '-1');
+              if (segmentIndex !== -1) {
+                console.log('✓ Playing segment', segmentIndex);
+                playSegment(segmentIndex);
+              }
+            }
+          });
+
+          pageContainer.appendChild(textLayerDiv);
         }
+
+        container.appendChild(pageContainer);
       }
+
+      // Load all segments into store
+      loadSegments(allSegments);
     };
 
-    renderPage();
+    renderAllPages();
+  }, [pdfDocument, loadSegments, playSegment]);
 
-    return () => {
-      if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
-      }
-    };
-  }, [pdfDocument, currentPage, loadSegments]);
+  // Sync Highlight with Playback
+  useEffect(() => {
+    if (!segments.length) return;
+
+    // Remove all 'playing' classes
+    document.querySelectorAll('sentence-highlight.playing').forEach(el => {
+      el.classList.remove('playing');
+    });
+
+    // Add 'playing' class to current segment
+    if (currentSegmentIndex >= 0 && currentSegmentIndex < segments.length) {
+      const currentElements = document.querySelectorAll(
+        `sentence-highlight[data-segment-index="${currentSegmentIndex}"]`
+      );
+      currentElements.forEach(el => el.classList.add('playing'));
+    }
+  }, [currentSegmentIndex, segments]);
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading PDF...</div>;
+  }
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative border border-gray-300 shadow-lg inline-block">
-        <canvas ref={canvasRef} className="block" />
-        <div
-          ref={textLayerRef}
-          className="absolute top-0 left-0 z-10"
-          style={{ pointerEvents: 'auto' }}
-        ></div>
-      </div>
-
-      {pdfDocument && (
-        <div className="flex gap-4 items-center">
-          <button
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage(prev => prev - 1)}
-            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <span>Page {currentPage} of {pdfDocument.numPages}</span>
-          <button
-            disabled={currentPage >= pdfDocument.numPages}
-            onClick={() => setCurrentPage(prev => prev + 1)}
-            className="px-3 py-1 bg-gray-200 rounded disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      <style jsx global>{`
-                /* Ensure textLayer class from pdfjs-dist matches our needs */
-                .textLayer {
-                     position: absolute;
-                     text-align: initial;
-                     top: 0;
-                     left: 0;
-                     right: 0;
-                     bottom: 0;
-                     overflow: hidden;
-                     opacity: 0.2;
-                     line-height: 1.0;
-                     pointer-events: auto;
-                }
-                .textLayer > span {
-                    color: transparent;
-                    position: absolute;
-                    white-space: pre;
-                    cursor: text;
-                    transform-origin: 0% 0%;
-                }
-                .textLayer .highlight {
-                    background-color: yellow; 
-                    opacity: 0.5;
-                }
-            `}</style>
+    <div className="flex flex-col items-center gap-4 w-full">
+      <div
+        ref={containerRef}
+        className="pdf-container border border-gray-300 shadow-lg overflow-y-auto"
+        style={{
+          maxHeight: '80vh',
+          padding: '20px'
+        }}
+      />
     </div>
   );
 };
