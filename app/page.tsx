@@ -1,0 +1,104 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { AudioEngine } from '../components/AudioEngine';
+import { useAudioStore } from '../store/useAudioStore';
+
+const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mod.PdfViewer), {
+  ssr: false,
+});
+
+const VoiceSelector = () => {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const selectedVoice = useAudioStore(state => state.selectedVoice);
+  const setSelectedVoice = useAudioStore(state => state.setSelectedVoice);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const vs = window.speechSynthesis.getVoices();
+      setVoices(vs);
+      // Default to first English voice if none selected
+      if (!selectedVoice && vs.length > 0) {
+        const enVoice = vs.find(v => v.lang.startsWith('en'));
+        if (enVoice) setSelectedVoice(enVoice.voiceURI);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { window.speechSynthesis.onvoiceschanged = null; };
+  }, [selectedVoice, setSelectedVoice]);
+
+  if (voices.length === 0) return null;
+
+  return (
+    <select
+      className="border p-2 rounded w-full bg-white"
+      value={selectedVoice || ''}
+      onChange={(e) => setSelectedVoice(e.target.value)}
+    >
+      <option value="">Default Browser Voice</option>
+      {voices.map(v => (
+        <option key={v.voiceURI} value={v.voiceURI}>
+          {v.name} ({v.lang})
+        </option>
+      ))}
+    </select>
+  );
+}
+
+export default function Home() {
+  const [file, setFile] = useState<File | null>(null);
+  const setApiKey = useAudioStore(state => state.setApiKey);
+  const play = useAudioStore(state => state.play);
+  const playbackStatus = useAudioStore(state => state.playbackStatus);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-8 gap-8">
+      <h1 className="text-3xl font-bold">Document Echo (Phase 1)</h1>
+
+      <div className="flex flex-col gap-4 w-full max-w-2xl">
+        <label className="text-xs font-semibold uppercase text-gray-500">Settings</label>
+        <div className="flex gap-4 w-full">
+          <input
+            type="text"
+            placeholder="OpenAI API Key (Optional)"
+            className="border p-2 rounded grow"
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={handleFileChange}
+            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+          />
+        </div>
+        <VoiceSelector />
+      </div>
+
+      <div className="flex gap-4">
+        <button
+          onClick={play}
+          disabled={!file || playbackStatus === 'playing'}
+          className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50"
+        >
+          {playbackStatus === 'playing' ? 'Playing...' : 'Play'}
+        </button>
+        <div className="text-sm self-center">Status: {playbackStatus}</div>
+      </div>
+
+      <div className="w-full max-w-4xl border min-h-[500px]">
+        {file && <PdfViewer file={file} />}
+      </div>
+
+      <AudioEngine />
+    </main>
+  );
+}
