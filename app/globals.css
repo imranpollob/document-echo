@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --total-scale-factor: 1.5; 
 }
 
 @theme inline {

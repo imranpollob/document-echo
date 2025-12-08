@@ -27,6 +27,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   const playSegment = useAudioStore(state => state.playSegment);
   const segments = useAudioStore(state => state.segments);
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
+  const playbackStatus = useAudioStore(state => state.playbackStatus);
 
   // Load PDF document
   useEffect(() => {
@@ -53,7 +54,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   const wrapSentencesInTextLayer = (
     textLayerDiv: HTMLDivElement,
     segments: TextSegment[],
-    pageNumber: number
+    pageNumber: number,
+    segmentOffset: number
   ) => {
     const presentationSpans = textLayerDiv.querySelectorAll('span[role="presentation"]');
 
@@ -69,12 +71,13 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           const spanText = textContent.trim();
 
           if (segmentText.includes(spanText) || spanText.includes(segmentText)) {
+            const segmentIndex = segmentOffset + index;
             if (htmlSpan.querySelector('sentence-highlight')) return;
 
             const wrapper = document.createElement('sentence-highlight');
-            wrapper.setAttribute('data-segment-index', index.toString());
+            wrapper.setAttribute('data-segment-index', segmentIndex.toString());
             wrapper.setAttribute('data-page', pageNumber.toString());
-            wrapper.className = `segment-${index}`;
+            wrapper.className = `segment-${segmentIndex}`;
 
             while (htmlSpan.firstChild) {
               wrapper.appendChild(htmlSpan.firstChild);
@@ -98,6 +101,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       container.innerHTML = ''; // Clear previous content
 
       const allSegments: TextSegment[] = [];
+      let segmentOffset = 0;
 
       // Render each page
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
@@ -130,7 +134,6 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         // Create text layer
         const textContent = await page.getTextContent();
         const segments = TextNormalizer.normalize(textContent.items, pageNum);
-        allSegments.push(...segments);
 
         const textLayerDiv = document.createElement('div');
         textLayerDiv.className = 'textLayer';
@@ -153,7 +156,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           }
 
           // Wrap sentences
-          wrapSentencesInTextLayer(textLayerDiv, segments, pageNum);
+          wrapSentencesInTextLayer(textLayerDiv, segments, pageNum, segmentOffset);
 
           // Add click handler
           textLayerDiv.addEventListener('click', (e) => {
@@ -173,9 +176,11 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         }
 
         container.appendChild(pageContainer);
+
+        allSegments.push(...segments);
+        segmentOffset += segments.length;
       }
 
-      // Load all segments into store
       loadSegments(allSegments);
     };
 
@@ -184,21 +189,21 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
   // Sync Highlight with Playback
   useEffect(() => {
-    if (!segments.length) return;
-
-    // Remove all 'playing' classes
+    // Always clear old state
     document.querySelectorAll('sentence-highlight.playing').forEach(el => {
       el.classList.remove('playing');
     });
 
-    // Add 'playing' class to current segment
+    // Only highlight while actively playing/paused
+    if (!segments.length || playbackStatus === 'idle' || playbackStatus === 'loading') return;
+
     if (currentSegmentIndex >= 0 && currentSegmentIndex < segments.length) {
       const currentElements = document.querySelectorAll(
         `sentence-highlight[data-segment-index="${currentSegmentIndex}"]`
       );
       currentElements.forEach(el => el.classList.add('playing'));
     }
-  }, [currentSegmentIndex, segments]);
+  }, [currentSegmentIndex, segments, playbackStatus]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Loading PDF...</div>;

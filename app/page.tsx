@@ -85,10 +85,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 gap-8">
-      <h1 className="text-3xl font-bold">Document Echo (Phase 1)</h1>
-
       <div className="flex flex-col gap-4 w-full max-w-2xl">
-        <label className="text-xs font-semibold uppercase text-gray-500">Settings</label>
         <div className="flex gap-4 w-full">
           <input
             type="text"
@@ -117,7 +114,7 @@ export default function Home() {
         <div className="text-sm self-center">Status: {playbackStatus}</div>
       </div>
 
-      <div className="w-full max-w-4xl border min-h-[500px]">
+      <div className="">
         {file && <PdfViewer file={file} />}
       </div>
 
