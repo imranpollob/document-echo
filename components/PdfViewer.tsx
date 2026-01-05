@@ -29,6 +29,25 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
 
+  // Add styles for sentence highlighting
+  useEffect(() => {
+    const styleId = 'sentence-highlight-styles';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.textContent = `
+        .sentence-fragment.hovered {
+          background-color: rgba(255, 255, 153, 0.5);
+          cursor: pointer;
+        }
+        .sentence-fragment.playing {
+          background-color: rgba(144, 238, 144, 0.5);
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Load PDF document
   useEffect(() => {
     if (!file) return;
@@ -48,9 +67,16 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     };
 
     loadPdf();
+
+    // Cleanup function to prevent duplicate renders
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+    };
   }, [file]);
 
-  // Attach segment metadata directly to presentation spans (no wrapper element)
+  // Wrap sentence fragments inside presentation spans (following naturalreader.html approach)
   const tagSentencesInTextLayer = (
     textDivs: HTMLElement[],
     textItems: any[],
@@ -99,9 +125,18 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
       const meta = spanToMeta.get(spanId);
       if (meta !== undefined) {
-        span.dataset.segmentIndex = meta.index.toString();
-        span.dataset.page = pageNumber.toString();
-        span.dataset.segmentText = meta.text;
+        // Following naturalreader.html approach: wrap content with sentence element
+        const originalText = span.textContent || '';
+        const sentenceWrapper = document.createElement('span');
+        sentenceWrapper.className = `sentence-fragment sentence-${meta.index}`;
+        sentenceWrapper.setAttribute('data-sentence-index', meta.index.toString());
+        sentenceWrapper.setAttribute('data-page-index', pageNumber.toString());
+        sentenceWrapper.setAttribute('data-sentence-text', meta.text);
+        sentenceWrapper.textContent = originalText;
+
+        // Clear span and append wrapped content
+        span.textContent = '';
+        span.appendChild(sentenceWrapper);
       }
     });
   };
@@ -109,6 +144,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   // Render all pages
   useEffect(() => {
     if (!pdfDocument || !containerRef.current) return;
+
+    let isCancelled = false;
 
     const renderAllPages = async () => {
       const container = containerRef.current;
@@ -121,6 +158,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
       // Render each page
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+        if (isCancelled) return;
+
         const page = await pdfDocument.getPage(pageNum);
         const viewport = page.getViewport({ scale: 1.5 });
 
@@ -128,8 +167,10 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         const pageContainer = document.createElement('div');
         pageContainer.className = 'pdf-page-container';
         pageContainer.style.position = 'relative';
-        pageContainer.style.marginBottom = '20px';
+        pageContainer.style.marginBottom = '30px';
         pageContainer.style.width = `${viewport.width}px`;
+        pageContainer.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+        pageContainer.style.backgroundColor = 'white';
 
         // Create canvas for the page
         const canvas = document.createElement('canvas');
@@ -144,6 +185,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             viewport: viewport,
           }).promise;
         }
+
+        if (isCancelled) return;
 
         pageContainer.appendChild(canvas);
 
@@ -165,6 +208,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
         await textLayer.render({ viewport });
 
+        if (isCancelled) return;
+
         if (textLayer.div) {
           // Grab the generated spans. Some pdf.js versions expose textDivs; otherwise, query the DOM.
           const textDivs = (textLayer as any).textDivs as HTMLElement[] | undefined;
@@ -179,24 +224,24 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             textLayerDiv.appendChild(textLayer.div.firstChild);
           }
 
-          // Highlight a full sentence on hover (event delegation)
+          // Highlight a full sentence on hover (event delegation) - updated for wrapped structure
           let hoveredSegmentIndex: string | null = null;
 
           const clearHover = () => {
             if (!hoveredSegmentIndex) return;
             textLayerDiv.querySelectorAll(
-              `span[role="presentation"][data-segment-index="${hoveredSegmentIndex}"]`
+              `.sentence-fragment[data-sentence-index="${hoveredSegmentIndex}"]`
             ).forEach(el => el.classList.remove('hovered'));
             hoveredSegmentIndex = null;
           };
 
           textLayerDiv.addEventListener('mouseover', (e) => {
             const target = e.target as HTMLElement;
-            const sentenceEl = target.closest('span[role="presentation"]');
-            if (!sentenceEl) return;
+            const sentenceFragment = target.closest('.sentence-fragment');
+            if (!sentenceFragment) return;
 
-            const segmentIndex = sentenceEl.getAttribute('data-segment-index');
-            const segmentText = sentenceEl.getAttribute('data-segment-text');
+            const segmentIndex = sentenceFragment.getAttribute('data-sentence-index');
+            const segmentText = sentenceFragment.getAttribute('data-sentence-text');
             if (!segmentIndex) return;
 
             // Log sentence text when available
@@ -210,7 +255,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             if (segmentIndex !== hoveredSegmentIndex) {
               clearHover();
               textLayerDiv.querySelectorAll(
-                `span[role="presentation"][data-segment-index="${segmentIndex}"]`
+                `.sentence-fragment[data-sentence-index="${segmentIndex}"]`
               ).forEach(el => el.classList.add('hovered'));
               hoveredSegmentIndex = segmentIndex;
             }
@@ -220,7 +265,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             const related = e.relatedTarget as HTMLElement | null;
             // If moving within the same textLayerDiv, ignore until mouse leaves the current sentence group
             if (related && textLayerDiv.contains(related)) {
-              const targetSegment = related.closest('span[role="presentation"]')?.getAttribute('data-segment-index');
+              const targetSegment = related.closest('.sentence-fragment')?.getAttribute('data-sentence-index');
               if (targetSegment && targetSegment === hoveredSegmentIndex) return;
             }
             clearHover();
@@ -228,13 +273,13 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
           textLayerDiv.addEventListener('mouseleave', clearHover);
 
-          // Add click handler
+          // Add click handler - updated for wrapped structure
           textLayerDiv.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;
-            const sentenceEl = target.closest('span[role="presentation"]');
+            const sentenceFragment = target.closest('.sentence-fragment');
 
-            if (sentenceEl) {
-              const segmentIndex = parseInt(sentenceEl.getAttribute('data-segment-index') || '-1');
+            if (sentenceFragment) {
+              const segmentIndex = parseInt(sentenceFragment.getAttribute('data-sentence-index') || '-1');
               if (segmentIndex !== -1) {
                 console.log('✓ Playing segment', segmentIndex);
                 playSegment(segmentIndex);
@@ -245,22 +290,29 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           pageContainer.appendChild(textLayerDiv);
         }
 
+        if (isCancelled) return;
         container.appendChild(pageContainer);
 
         allSegments.push(...pageSegments);
         segmentOffset += pageSegments.length;
       }
 
+      if (isCancelled) return;
       loadSegments(allSegments);
     };
 
     renderAllPages();
-  }, [pdfDocument, loadSegments, playSegment]);
 
-  // Sync Highlight with Playback
+    return () => {
+      isCancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfDocument]);
+
+  // Sync Highlight with Playback - updated for wrapped structure
   useEffect(() => {
     // Always clear old state
-    document.querySelectorAll('span[role="presentation"].playing').forEach(el => {
+    document.querySelectorAll('.sentence-fragment.playing').forEach(el => {
       el.classList.remove('playing');
     });
 
@@ -269,7 +321,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
     if (currentSegmentIndex >= 0 && currentSegmentIndex < storeSegments.length) {
       const currentElements = document.querySelectorAll(
-        `span[role="presentation"][data-segment-index="${currentSegmentIndex}"]`
+        `.sentence-fragment[data-sentence-index="${currentSegmentIndex}"]`
       );
       currentElements.forEach(el => el.classList.add('playing'));
     }
