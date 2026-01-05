@@ -34,3 +34,39 @@ body {
 .textLayer span[role="presentation"].playing {
   background-color: rgba(255, 255, 0, 0.4) !important;
 }
+
+/* Sentence highlighting styles moved from PdfViewer.tsx */
+.textLayer {
+  opacity: 1 !important;
+  mix-blend-mode: normal;
+  pointer-events: auto !important;
+  isolation: isolate;
+}
+
+.textLayer span,
+nr-sentence {
+  pointer-events: auto !important;
+}
+
+nr-sentence {
+  cursor: pointer;
+  display: inline;
+  border-radius: 3px;
+  position: relative;
+  z-index: 120;
+  padding: 0 1px;
+  background-color: transparent;
+  mix-blend-mode: normal !important;
+}
+
+nr-sentence.hovered,
+.textLayer nr-sentence.hovered {
+  background-color: rgba(219, 248, 4, 0.25) !important;
+  color: inherit !important;
+  mix-blend-mode: normal !important;
+}
+
+nr-sentence.playing {
+  background-color: rgba(144, 238, 144, 0.25) !important;
+  mix-blend-mode: normal !important;
+}

@@ -29,52 +29,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
 
-  // Add styles for sentence highlighting
-  useEffect(() => {
-    const styleId = 'sentence-highlight-styles-v2'; // Changed ID to force update
-    let style = document.getElementById(styleId) as HTMLStyleElement;
-
-    if (!style) {
-      style = document.createElement('style');
-      style.id = styleId;
-      document.head.appendChild(style);
-    }
-
-    style.textContent = `
-      .textLayer {
-        opacity: 1 !important;
-        mix-blend-mode: normal;
-        pointer-events: auto !important;
-        isolation: isolate;
-      }
-      .textLayer span,
-      nr-sentence {
-        pointer-events: auto !important;
-      }
-      nr-sentence {
-        cursor: pointer;
-        display: inline;
-        border-radius: 3px;
-        position: relative;
-        z-index: 20;
-        padding: 0 1px;
-      }
-      nr-sentence.hovered {
-        background-color: rgba(255, 255, 0, 0.45) !important;
-        box-shadow: 0 0 0 2px rgba(255, 255, 0, 0.35);
-        mix-blend-mode: normal !important;
-      }
-      nr-sentence.playing {
-        background-color: rgba(144, 238, 144, 0.5) !important;
-        mix-blend-mode: normal !important;
-      }
-    `;
-
-    // Cleanup old styles if they exist
-    const oldStyle = document.getElementById('sentence-highlight-styles');
-    if (oldStyle) oldStyle.remove();
-
-  }, []);
+  // Styles for sentence highlighting moved to app/globals.css
 
   // Load PDF document
   useEffect(() => {
@@ -304,15 +259,19 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
     let hoveredSegmentIndex: string | null = null;
 
-    const clearHover = () => {
-      if (!hoveredSegmentIndex) return;
-      container.querySelectorAll(`.nr-s${hoveredSegmentIndex}`).forEach(el => {
-        el.classList.remove('hovered');
-      });
-      hoveredSegmentIndex = null;
+    const setHoveredSegment = (index: string | null) => {
+      document.querySelectorAll('nr-sentence.hovered').forEach(el => el.classList.remove('hovered'));
+      if (index === null) {
+        hoveredSegmentIndex = null;
+        return;
+      }
+      document.querySelectorAll(`.nr-s${index}`).forEach(el => el.classList.add('hovered'));
+      hoveredSegmentIndex = index;
     };
 
-    const handlePointerMove = (e: MouseEvent) => {
+    const clearHover = () => setHoveredSegment(null);
+
+    const handlePointerOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const sentenceElement = target.closest('nr-sentence');
       if (!sentenceElement) return;
@@ -320,14 +279,9 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       const segmentIndex = sentenceElement.getAttribute('data-na-sen-ind');
       if (!segmentIndex) return;
 
-      console.debug('[PdfViewer] hover sentence', segmentIndex, 'target', target.tagName);
-
+      console.info('[PdfViewer] hover sentence', segmentIndex, 'target', target.tagName);
       if (segmentIndex !== hoveredSegmentIndex) {
-        clearHover();
-        container.querySelectorAll(`.nr-s${segmentIndex}`).forEach(el => {
-          el.classList.add('hovered');
-        });
-        hoveredSegmentIndex = segmentIndex;
+        setHoveredSegment(segmentIndex);
       }
     };
 
@@ -341,18 +295,23 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       }
     };
 
-    container.addEventListener('mousemove', handlePointerMove);
-    document.addEventListener('mousemove', handlePointerMove);
-    container.addEventListener('click', handleClick);
+    // Use document-level delegation for pointerover (consistent with click)
+    document.addEventListener('pointerover', handlePointerOver);
+    // container.addEventListener('click', handleClick);
     document.addEventListener('click', handleClick);
-    container.addEventListener('mouseleave', clearHover);
+
+    const handlePointerOut = (e: PointerEvent) => {
+      if (!container.contains(e.relatedTarget as Node)) {
+        clearHover();
+      }
+    };
+    document.addEventListener('pointerout', handlePointerOut);
 
     return () => {
-      container.removeEventListener('mousemove', handlePointerMove);
-      document.removeEventListener('mousemove', handlePointerMove);
-      container.removeEventListener('click', handleClick);
+      document.removeEventListener('pointerover', handlePointerOver);
+      // container.removeEventListener('click', handleClick);
       document.removeEventListener('click', handleClick);
-      container.removeEventListener('mouseleave', clearHover);
+      document.removeEventListener('pointerout', handlePointerOut);
     };
   }, [playSegment]);
 
