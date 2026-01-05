@@ -43,21 +43,30 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     style.textContent = `
       .textLayer {
         opacity: 1 !important;
-        mix-blend-mode: multiply;
+        mix-blend-mode: normal;
+        pointer-events: auto !important;
+        isolation: isolate;
+      }
+      .textLayer span,
+      nr-sentence {
+        pointer-events: auto !important;
       }
       nr-sentence {
         cursor: pointer;
         display: inline;
         border-radius: 3px;
         position: relative;
-        z-index: 10;
+        z-index: 20;
+        padding: 0 1px;
       }
       nr-sentence.hovered {
-        background-color: rgba(255, 255, 0, 0.4) !important;
-        outline: 2px solid rgba(255, 255, 0, 0.4);
+        background-color: rgba(255, 255, 0, 0.45) !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 0, 0.35);
+        mix-blend-mode: normal !important;
       }
       nr-sentence.playing {
         background-color: rgba(144, 238, 144, 0.5) !important;
+        mix-blend-mode: normal !important;
       }
     `;
 
@@ -115,6 +124,13 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       });
     });
 
+    console.info('[PdfViewer] tagging page', pageNumber, {
+      textDivs: textDivs.length,
+      spansWithFragments: spanToFragments.size,
+      segmentOffset,
+      segmentsOnPage: segments.length,
+    });
+
     // Match generated spans to textItems (pdf.js generally aligns by index)
     let itemPtr = 0;
     textDivs.forEach((span) => {
@@ -141,6 +157,9 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
             span.appendChild(sentenceWrapper);
           });
+        } else {
+          // Log spans that didn't get matched
+          console.debug('[PdfViewer] no fragments for span', spanId, 'text:', span.textContent);
         }
 
         itemPtr++;
@@ -184,6 +203,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         canvas.className = 'block';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.zIndex = '1';
 
         const context = canvas.getContext('2d');
         if (context) {
@@ -208,6 +229,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         textLayerDiv.style.left = '0';
         textLayerDiv.style.width = `${viewport.width}px`;
         textLayerDiv.style.height = `${viewport.height}px`;
+        textLayerDiv.style.pointerEvents = 'auto';
+        textLayerDiv.style.zIndex = '100';
 
         const textLayer = new TextLayerBuilder({
           pdfPage: page,
@@ -228,10 +251,29 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
           tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
 
+          // Ensure pointer events and stacking for hover/click
+          textLayer.div.style.pointerEvents = 'auto';
+          textLayer.div.style.position = 'absolute';
+          textLayer.div.style.top = '0';
+          textLayer.div.style.left = '0';
+          textLayer.div.style.zIndex = '100';
+
+          spans.forEach(s => {
+            s.style.pointerEvents = 'auto';
+            s.style.zIndex = '100';
+            s.querySelectorAll('nr-sentence').forEach(nr => {
+              (nr as HTMLElement).style.pointerEvents = 'auto';
+              (nr as HTMLElement).style.zIndex = '100';
+            });
+          });
+
           // Copy children to our custom div (after tagging)
           while (textLayer.div.firstChild) {
             textLayerDiv.appendChild(textLayer.div.firstChild);
           }
+
+          const sentencesCount = textLayerDiv.querySelectorAll('nr-sentence').length;
+          console.info('[PdfViewer] sentences in textLayerDiv', sentencesCount);
 
           pageContainer.appendChild(textLayerDiv);
         }
@@ -264,25 +306,24 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
     const clearHover = () => {
       if (!hoveredSegmentIndex) return;
-      // Select all elements with the class nr-s{index} across the entire container
       container.querySelectorAll(`.nr-s${hoveredSegmentIndex}`).forEach(el => {
         el.classList.remove('hovered');
       });
       hoveredSegmentIndex = null;
     };
 
-    const handleMouseOver = (e: MouseEvent) => {
+    const handlePointerMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Use closest to handle nested elements if any
       const sentenceElement = target.closest('nr-sentence');
       if (!sentenceElement) return;
 
       const segmentIndex = sentenceElement.getAttribute('data-na-sen-ind');
       if (!segmentIndex) return;
 
+      console.debug('[PdfViewer] hover sentence', segmentIndex, 'target', target.tagName);
+
       if (segmentIndex !== hoveredSegmentIndex) {
         clearHover();
-        // Highlight all fragments of this sentence across all pages
         container.querySelectorAll(`.nr-s${segmentIndex}`).forEach(el => {
           el.classList.add('hovered');
         });
@@ -290,41 +331,30 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       }
     };
 
-    const handleMouseOut = (e: MouseEvent) => {
-      const related = e.relatedTarget as HTMLElement | null;
-      // If moving within the same container, check if we are still on the same sentence
-      if (related && container.contains(related)) {
-        const relatedSentence = related.closest('nr-sentence');
-        // If the related target is also an nr-sentence with the same index, do nothing
-        if (relatedSentence &&
-          relatedSentence.getAttribute('data-na-sen-ind') === hoveredSegmentIndex) {
-          return;
-        }
-      }
-      clearHover();
-    };
-
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const sentenceElement = target.closest('nr-sentence');
       if (sentenceElement) {
-        const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1');
+        const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1', 10);
+        console.info('[PdfViewer] click sentence', segmentIndex);
         playSegment(segmentIndex);
       }
     };
 
-    container.addEventListener('mouseover', handleMouseOver);
-    container.addEventListener('mouseout', handleMouseOut);
+    container.addEventListener('mousemove', handlePointerMove);
+    document.addEventListener('mousemove', handlePointerMove);
     container.addEventListener('click', handleClick);
+    document.addEventListener('click', handleClick);
     container.addEventListener('mouseleave', clearHover);
 
     return () => {
-      container.removeEventListener('mouseover', handleMouseOver);
-      container.removeEventListener('mouseout', handleMouseOut);
+      container.removeEventListener('mousemove', handlePointerMove);
+      document.removeEventListener('mousemove', handlePointerMove);
       container.removeEventListener('click', handleClick);
+      document.removeEventListener('click', handleClick);
       container.removeEventListener('mouseleave', clearHover);
     };
-  }, [playSegment]); // Re-bind if playSegment changes (though it's from store so stable usually)
+  }, [playSegment]);
 
   // Sync Highlight with Playback - updated for wrapped structure
   useEffect(() => {
