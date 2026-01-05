@@ -25,7 +25,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   // Store actions
   const loadSegments = useAudioStore(state => state.loadSegments);
   const playSegment = useAudioStore(state => state.playSegment);
-  const segments = useAudioStore(state => state.segments);
+  const storeSegments = useAudioStore(state => state.segments);
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
 
@@ -52,36 +52,57 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
   // Attach segment metadata directly to presentation spans (no wrapper element)
   const tagSentencesInTextLayer = (
-    textLayerDiv: HTMLDivElement,
+    textDivs: HTMLElement[],
+    textItems: any[],
     segments: TextSegment[],
     pageNumber: number,
     segmentOffset: number
   ) => {
-    const presentationSpans = textLayerDiv.querySelectorAll('span[role="presentation"]');
-
-    presentationSpans.forEach((span) => {
-      const htmlSpan = span as HTMLElement;
-      htmlSpan.classList.add('segment-span');
-
-      const textContent = htmlSpan.textContent || '';
-
-      if (!textContent.trim()) return;
-
-      segments.forEach((segment, index) => {
-        if (segment.pageNumber === pageNumber) {
-          const segmentText = segment.text.trim();
-          const spanText = textContent.trim();
-
-          if (segmentText.includes(spanText) || spanText.includes(segmentText)) {
-            const segmentIndex = segmentOffset + index;
-            if (htmlSpan.dataset.segmentIndex) return;
-
-            htmlSpan.dataset.segmentIndex = segmentIndex.toString();
-            htmlSpan.dataset.page = pageNumber.toString();
-            htmlSpan.classList.add('segment-span');
-          }
+    // Build lookup from spanId -> { index, text } so we can tag spans and attach text for logging
+    const spanToMeta = new Map<string, { index: number, text: string }>();
+    segments.forEach((segment, idx) => {
+      const segmentIndex = segmentOffset + idx;
+      segment.spanIds.forEach(spanId => {
+        if (!spanToMeta.has(spanId)) {
+          spanToMeta.set(spanId, { index: segmentIndex, text: segment.text });
         }
       });
+    });
+
+    // Align each DOM span to the corresponding textContent.item index by matching text.
+    let itemPtr = 0;
+    textDivs.forEach((span, idx) => {
+      const spanTextRaw = (span.textContent || '').replace(/\s+/g, ' ').trim();
+
+      // Advance itemPtr to the first non-empty candidate
+      while (itemPtr < textItems.length && !(textItems[itemPtr].str || '').trim()) itemPtr++;
+
+      // Try to find a matching item starting from itemPtr
+      let matchedIndex = -1;
+      for (let k = itemPtr; k < textItems.length; k++) {
+        const itemStr = (textItems[k].str || '').replace(/\s+/g, ' ').trim();
+        if (!itemStr) continue;
+
+        // Normalize hyphenation
+        const itemStrNorm = itemStr.endsWith('-') ? itemStr.slice(0, -1) : itemStr;
+
+        if (itemStrNorm && (itemStrNorm === spanTextRaw || itemStrNorm.includes(spanTextRaw) || spanTextRaw.includes(itemStrNorm))) {
+          matchedIndex = k;
+          itemPtr = k + 1;
+          break;
+        }
+      }
+
+      const spanId = matchedIndex >= 0 ? `page-${pageNumber}-span-${matchedIndex}` : `page-${pageNumber}-span-${idx}`;
+      span.id = spanId;
+      span.classList.add('segment-span');
+
+      const meta = spanToMeta.get(spanId);
+      if (meta !== undefined) {
+        span.dataset.segmentIndex = meta.index.toString();
+        span.dataset.page = pageNumber.toString();
+        span.dataset.segmentText = meta.text;
+      }
     });
   };
 
@@ -128,7 +149,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
         // Create text layer
         const textContent = await page.getTextContent();
-        const segments = TextNormalizer.normalize(textContent.items, pageNum);
+        const pageSegments = TextNormalizer.normalize(textContent.items, pageNum);
 
         const textLayerDiv = document.createElement('div');
         textLayerDiv.className = 'textLayer';
@@ -145,13 +166,67 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         await textLayer.render({ viewport });
 
         if (textLayer.div) {
-          // Copy children to our custom div
+          // Grab the generated spans. Some pdf.js versions expose textDivs; otherwise, query the DOM.
+          const textDivs = (textLayer as any).textDivs as HTMLElement[] | undefined;
+          const spans = textDivs && Array.isArray(textDivs)
+            ? textDivs
+            : Array.from(textLayer.div.querySelectorAll<HTMLElement>('span[role="presentation"]'));
+
+          tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
+
+          // Copy children to our custom div (after tagging)
           while (textLayer.div.firstChild) {
             textLayerDiv.appendChild(textLayer.div.firstChild);
           }
 
-          // Tag sentences for interaction/highlighting
-          tagSentencesInTextLayer(textLayerDiv, segments, pageNum, segmentOffset);
+          // Highlight a full sentence on hover (event delegation)
+          let hoveredSegmentIndex: string | null = null;
+
+          const clearHover = () => {
+            if (!hoveredSegmentIndex) return;
+            textLayerDiv.querySelectorAll(
+              `span[role="presentation"][data-segment-index="${hoveredSegmentIndex}"]`
+            ).forEach(el => el.classList.remove('hovered'));
+            hoveredSegmentIndex = null;
+          };
+
+          textLayerDiv.addEventListener('mouseover', (e) => {
+            const target = e.target as HTMLElement;
+            const sentenceEl = target.closest('span[role="presentation"]');
+            if (!sentenceEl) return;
+
+            const segmentIndex = sentenceEl.getAttribute('data-segment-index');
+            const segmentText = sentenceEl.getAttribute('data-segment-text');
+            if (!segmentIndex) return;
+
+            // Log sentence text when available
+            if (segmentText) {
+              console.log('Hovered sentence:', segmentText);
+            } else {
+              // Fallback: log index so we can inspect mapping
+              console.log('Hovered segment index:', segmentIndex);
+            }
+
+            if (segmentIndex !== hoveredSegmentIndex) {
+              clearHover();
+              textLayerDiv.querySelectorAll(
+                `span[role="presentation"][data-segment-index="${segmentIndex}"]`
+              ).forEach(el => el.classList.add('hovered'));
+              hoveredSegmentIndex = segmentIndex;
+            }
+          });
+
+          textLayerDiv.addEventListener('mouseout', (e) => {
+            const related = e.relatedTarget as HTMLElement | null;
+            // If moving within the same textLayerDiv, ignore until mouse leaves the current sentence group
+            if (related && textLayerDiv.contains(related)) {
+              const targetSegment = related.closest('span[role="presentation"]')?.getAttribute('data-segment-index');
+              if (targetSegment && targetSegment === hoveredSegmentIndex) return;
+            }
+            clearHover();
+          });
+
+          textLayerDiv.addEventListener('mouseleave', clearHover);
 
           // Add click handler
           textLayerDiv.addEventListener('click', (e) => {
@@ -172,8 +247,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
         container.appendChild(pageContainer);
 
-        allSegments.push(...segments);
-        segmentOffset += segments.length;
+        allSegments.push(...pageSegments);
+        segmentOffset += pageSegments.length;
       }
 
       loadSegments(allSegments);
@@ -190,15 +265,15 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     });
 
     // Only highlight when a segment is selected (any non-idle status)
-    if (!segments.length || playbackStatus === 'idle') return;
+    if (!storeSegments.length || playbackStatus === 'idle') return;
 
-    if (currentSegmentIndex >= 0 && currentSegmentIndex < segments.length) {
+    if (currentSegmentIndex >= 0 && currentSegmentIndex < storeSegments.length) {
       const currentElements = document.querySelectorAll(
         `span[role="presentation"][data-segment-index="${currentSegmentIndex}"]`
       );
       currentElements.forEach(el => el.classList.add('playing'));
     }
-  }, [currentSegmentIndex, segments, playbackStatus]);
+  }, [currentSegmentIndex, storeSegments, playbackStatus]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center p-8">Loading PDF...</div>;

@@ -3,7 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --total-scale-factor: 1.5; 
+  --total-scale-factor: 1.5;
 }
 
 @theme inline {
@@ -23,12 +23,12 @@ body {
 
 /* PDF highlighting styles */
 .textLayer span[role="presentation"].segment-span {
-  transition: background-color 0.2s ease;
+  transition: background-color 0.15s ease;
   cursor: pointer;
 }
 
-.textLayer span[role="presentation"].segment-span:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+.textLayer span[role="presentation"].segment-span.hovered {
+  background-color: rgba(0, 0, 0, 0.12);
 }
 
 .textLayer span[role="presentation"].playing {
