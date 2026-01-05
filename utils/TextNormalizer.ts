@@ -12,72 +12,110 @@ interface ScrapedTextItem {
 }
 
 export class TextNormalizer {
+  /**
+   * Normalize raw PDF.js text items into NaturalReader-like "sentence" chunks.
+   * We keep span ordering from PDF.js (page-${pageIndex}-span-${idx}) and
+   * split on punctuation boundaries while keeping per-span fragments so
+   * sentences that share a single PDF span can still be wrapped separately.
+   */
   static normalize(textItems: any[], pageIndex: number): TextSegment[] {
-    // 1. Maintain alignment with original indices
-    // We iterate over ALL items to preserve index for spanId, but skip empty ones for text building.
-    
-    let fullText = "";
-    const charToSpanMap: { spanId: string, pageIndex: number }[] = [];
+    const fullTextChars: string[] = [];
+    const charToSpanMap: { spanId: string }[] = [];
+    const spanTextMap: Map<string, string[]> = new Map();
 
     textItems.forEach((item, idx) => {
-      const str = item.str;
-      // Skip empty or whitespace-only items for text processing but we MUST know their index exists
-      if (str.trim().length === 0) {
-          // Even if we skip, we don't add to fullText. 
-          // The issue is if we skip, the span in DOM still exists (usually).
-          // If we don't add to fullText, we can't map text back to this span.
-          // That's fine, empty spans strictly shouldn't be selectable for reading.
-          return;
+      const raw = typeof item?.str === 'string' ? item.str : '';
+      if (raw.length === 0) return;
+
+      const spanId = `page-${pageIndex}-span-${idx}`;
+
+      for (const ch of raw) {
+        fullTextChars.push(ch);
+        charToSpanMap.push({ spanId });
+        const bucket = spanTextMap.get(spanId) ?? [];
+        bucket.push(ch);
+        spanTextMap.set(spanId, bucket);
       }
-      
-      const spanId = `page-${pageIndex}-span-${idx}`; 
-      
-      for (let i = 0; i < str.length; i++) {
-        fullText += str[i];
-        charToSpanMap.push({ spanId, pageIndex });
+
+      // Add a space separator when the PDF item doesn't already end with
+      // whitespace or a hyphen. This prevents words from merging while still
+      // allowing hyphenated line-breaks to stay contiguous.
+      const endsWithWhitespace = /\s$/.test(raw);
+      const endsWithHyphen = raw.endsWith('-');
+
+      if (item.hasEOL) {
+        fullTextChars.push('\n');
+        charToSpanMap.push({ spanId: 'EOL' });
+      } else if (!endsWithWhitespace && !endsWithHyphen) {
+        fullTextChars.push(' ');
+        charToSpanMap.push({ spanId: 'SPACE' });
       }
-      
-      // Heuristic: If item ends in "-", remove it and don't add space.
-      if (str.endsWith('-')) {
-         fullText = fullText.slice(0, -1);
-         charToSpanMap.pop();
-       } else {
-         fullText += " ";
-         charToSpanMap.push({ spanId: "SPACE", pageIndex });
-       }
     });
 
-    // 3. Sentence Segmentation
-    const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' });
-    const segments = segmenter.segment(fullText);
-    
-    const result: TextSegment[] = [];
-    
-    let currentIndex = 0;
-    
-    for (const seg of segments) {
-      const segmentText = seg.segment.trim();
-      if (segmentText.length === 0) continue;
-      
-      const startIndex = seg.index;
-      const endIndex = startIndex + seg.segment.length;
-      
-      // Collect span IDs for this range
-      const spanIds = new Set<string>();
-      for (let i = startIndex; i < endIndex; i++) {
-        if (charToSpanMap[i] && charToSpanMap[i].spanId !== "SPACE") {
-          spanIds.add(charToSpanMap[i].spanId);
-        }
+    const text = fullTextChars.join('');
+    const segments: TextSegment[] = [];
+
+    let segStart = 0;
+
+    const flushSegment = (endExclusive: number) => {
+      if (endExclusive <= segStart) return;
+
+      const segmentText = text.slice(segStart, endExclusive).trim();
+      if (!segmentText) {
+        segStart = endExclusive;
+        return;
       }
-      
-      result.push({
+
+      const spanIds = new Set<string>();
+      const spanFragments: { spanId: string; text: string }[] = [];
+
+      let currentSpan: string | null = null;
+      let buffer = '';
+
+      for (let i = segStart; i < endExclusive; i++) {
+        const mapped = charToSpanMap[i];
+        if (!mapped) continue;
+        if (mapped.spanId === 'SPACE' || mapped.spanId === 'EOL') continue;
+        spanIds.add(mapped.spanId);
+
+        if (mapped.spanId !== currentSpan) {
+          if (buffer && currentSpan) {
+            spanFragments.push({ spanId: currentSpan, text: buffer });
+          }
+          currentSpan = mapped.spanId;
+          buffer = '';
+        }
+
+        buffer += fullTextChars[i];
+      }
+
+      if (buffer && currentSpan) {
+        spanFragments.push({ spanId: currentSpan, text: buffer });
+      }
+
+      segments.push({
         id: crypto.randomUUID(),
         text: segmentText,
-        pageNumber: pageIndex, // Already 1-based from input
+        pageNumber: pageIndex,
         spanIds: Array.from(spanIds),
+        spanFragments,
       });
+
+      segStart = endExclusive;
+    };
+
+    for (let i = 0; i < fullTextChars.length; i++) {
+      const ch = fullTextChars[i];
+      const isSentenceEnd = /[.!?]/.test(ch);
+
+      if (isSentenceEnd) {
+        flushSegment(i + 1);
+      }
     }
 
-    return result;
+    // Flush any trailing text.
+    flushSegment(fullTextChars.length);
+
+    return segments;
   }
 }

@@ -6,6 +6,8 @@ export interface TextSegment {
   rect?: { x: number, y: number, w: number, h: number }; 
   // IDs of the specific span elements in the PDF.js text layer
   spanIds: string[];   
+  // Fine-grained fragments per span so we can split multiple sentences inside one span
+  spanFragments?: { spanId: string; text: string }[];
 }
 
 export interface TtsRequest {

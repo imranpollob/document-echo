@@ -31,21 +31,40 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
   // Add styles for sentence highlighting
   useEffect(() => {
-    const styleId = 'sentence-highlight-styles';
-    if (!document.getElementById(styleId)) {
-      const style = document.createElement('style');
+    const styleId = 'sentence-highlight-styles-v2'; // Changed ID to force update
+    let style = document.getElementById(styleId) as HTMLStyleElement;
+
+    if (!style) {
+      style = document.createElement('style');
       style.id = styleId;
-      style.textContent = `
-        .sentence-fragment.hovered {
-          background-color: rgba(255, 255, 153, 0.5);
-          cursor: pointer;
-        }
-        .sentence-fragment.playing {
-          background-color: rgba(144, 238, 144, 0.5);
-        }
-      `;
       document.head.appendChild(style);
     }
+
+    style.textContent = `
+      .textLayer {
+        opacity: 1 !important;
+        mix-blend-mode: multiply;
+      }
+      nr-sentence {
+        cursor: pointer;
+        display: inline;
+        border-radius: 3px;
+        position: relative;
+        z-index: 10;
+      }
+      nr-sentence.hovered {
+        background-color: rgba(255, 255, 0, 0.4) !important;
+        outline: 2px solid rgba(255, 255, 0, 0.4);
+      }
+      nr-sentence.playing {
+        background-color: rgba(144, 238, 144, 0.5) !important;
+      }
+    `;
+
+    // Cleanup old styles if they exist
+    const oldStyle = document.getElementById('sentence-highlight-styles');
+    if (oldStyle) oldStyle.remove();
+
   }, []);
 
   // Load PDF document
@@ -84,59 +103,47 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     pageNumber: number,
     segmentOffset: number
   ) => {
-    // Build lookup from spanId -> { index, text } so we can tag spans and attach text for logging
-    const spanToMeta = new Map<string, { index: number, text: string }>();
+    // Build spanId -> ordered fragments so we can split multiple sentences inside one span
+    const spanToFragments = new Map<string, { index: number; text: string }[]>();
     segments.forEach((segment, idx) => {
       const segmentIndex = segmentOffset + idx;
-      segment.spanIds.forEach(spanId => {
-        if (!spanToMeta.has(spanId)) {
-          spanToMeta.set(spanId, { index: segmentIndex, text: segment.text });
-        }
+      const fragments = segment.spanFragments ?? [];
+      fragments.forEach(fragment => {
+        const bucket = spanToFragments.get(fragment.spanId) ?? [];
+        bucket.push({ index: segmentIndex, text: fragment.text });
+        spanToFragments.set(fragment.spanId, bucket);
       });
     });
 
-    // Align each DOM span to the corresponding textContent.item index by matching text.
+    // Match generated spans to textItems (pdf.js generally aligns by index)
     let itemPtr = 0;
-    textDivs.forEach((span, idx) => {
-      const spanTextRaw = (span.textContent || '').replace(/\s+/g, ' ').trim();
-
-      // Advance itemPtr to the first non-empty candidate
-      while (itemPtr < textItems.length && !(textItems[itemPtr].str || '').trim()) itemPtr++;
-
-      // Try to find a matching item starting from itemPtr
-      let matchedIndex = -1;
-      for (let k = itemPtr; k < textItems.length; k++) {
-        const itemStr = (textItems[k].str || '').replace(/\s+/g, ' ').trim();
-        if (!itemStr) continue;
-
-        // Normalize hyphenation
-        const itemStrNorm = itemStr.endsWith('-') ? itemStr.slice(0, -1) : itemStr;
-
-        if (itemStrNorm && (itemStrNorm === spanTextRaw || itemStrNorm.includes(spanTextRaw) || spanTextRaw.includes(itemStrNorm))) {
-          matchedIndex = k;
-          itemPtr = k + 1;
-          break;
-        }
+    textDivs.forEach((span) => {
+      while (itemPtr < textItems.length && textItems[itemPtr].str.length === 0) {
+        itemPtr++;
       }
 
-      const spanId = matchedIndex >= 0 ? `page-${pageNumber}-span-${matchedIndex}` : `page-${pageNumber}-span-${idx}`;
-      span.id = spanId;
-      span.classList.add('segment-span');
+      if (itemPtr < textItems.length) {
+        const spanId = `page-${pageNumber}-span-${itemPtr}`;
+        span.id = spanId;
+        span.classList.add('segment-span');
 
-      const meta = spanToMeta.get(spanId);
-      if (meta !== undefined) {
-        // Following naturalreader.html approach: wrap content with sentence element
-        const originalText = span.textContent || '';
-        const sentenceWrapper = document.createElement('span');
-        sentenceWrapper.className = `sentence-fragment sentence-${meta.index}`;
-        sentenceWrapper.setAttribute('data-sentence-index', meta.index.toString());
-        sentenceWrapper.setAttribute('data-page-index', pageNumber.toString());
-        sentenceWrapper.setAttribute('data-sentence-text', meta.text);
-        sentenceWrapper.textContent = originalText;
+        const fragments = spanToFragments.get(spanId);
+        if (fragments && fragments.length > 0) {
+          span.textContent = '';
+          fragments.forEach(fragment => {
+            if (fragment.text.trim().length === 0) return;
 
-        // Clear span and append wrapped content
-        span.textContent = '';
-        span.appendChild(sentenceWrapper);
+            const sentenceWrapper = document.createElement('nr-sentence');
+            sentenceWrapper.className = `nr-s${fragment.index}`;
+            sentenceWrapper.setAttribute('data-na-sen-ind', fragment.index.toString());
+            sentenceWrapper.setAttribute('data-na-page-ind', pageNumber.toString());
+            sentenceWrapper.textContent = fragment.text;
+
+            span.appendChild(sentenceWrapper);
+          });
+        }
+
+        itemPtr++;
       }
     });
   };
@@ -217,75 +224,14 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             ? textDivs
             : Array.from(textLayer.div.querySelectorAll<HTMLElement>('span[role="presentation"]'));
 
+          console.log(`Page ${pageNum}: Found ${spans.length} spans to tag.`);
+
           tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
 
           // Copy children to our custom div (after tagging)
           while (textLayer.div.firstChild) {
             textLayerDiv.appendChild(textLayer.div.firstChild);
           }
-
-          // Highlight a full sentence on hover (event delegation) - updated for wrapped structure
-          let hoveredSegmentIndex: string | null = null;
-
-          const clearHover = () => {
-            if (!hoveredSegmentIndex) return;
-            textLayerDiv.querySelectorAll(
-              `.sentence-fragment[data-sentence-index="${hoveredSegmentIndex}"]`
-            ).forEach(el => el.classList.remove('hovered'));
-            hoveredSegmentIndex = null;
-          };
-
-          textLayerDiv.addEventListener('mouseover', (e) => {
-            const target = e.target as HTMLElement;
-            const sentenceFragment = target.closest('.sentence-fragment');
-            if (!sentenceFragment) return;
-
-            const segmentIndex = sentenceFragment.getAttribute('data-sentence-index');
-            const segmentText = sentenceFragment.getAttribute('data-sentence-text');
-            if (!segmentIndex) return;
-
-            // Log sentence text when available
-            if (segmentText) {
-              console.log('Hovered sentence:', segmentText);
-            } else {
-              // Fallback: log index so we can inspect mapping
-              console.log('Hovered segment index:', segmentIndex);
-            }
-
-            if (segmentIndex !== hoveredSegmentIndex) {
-              clearHover();
-              textLayerDiv.querySelectorAll(
-                `.sentence-fragment[data-sentence-index="${segmentIndex}"]`
-              ).forEach(el => el.classList.add('hovered'));
-              hoveredSegmentIndex = segmentIndex;
-            }
-          });
-
-          textLayerDiv.addEventListener('mouseout', (e) => {
-            const related = e.relatedTarget as HTMLElement | null;
-            // If moving within the same textLayerDiv, ignore until mouse leaves the current sentence group
-            if (related && textLayerDiv.contains(related)) {
-              const targetSegment = related.closest('.sentence-fragment')?.getAttribute('data-sentence-index');
-              if (targetSegment && targetSegment === hoveredSegmentIndex) return;
-            }
-            clearHover();
-          });
-
-          textLayerDiv.addEventListener('mouseleave', clearHover);
-
-          // Add click handler - updated for wrapped structure
-          textLayerDiv.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            const sentenceFragment = target.closest('.sentence-fragment');
-
-            if (sentenceFragment) {
-              const segmentIndex = parseInt(sentenceFragment.getAttribute('data-sentence-index') || '-1');
-              if (segmentIndex !== -1) {
-                console.log('✓ Playing segment', segmentIndex);
-                playSegment(segmentIndex);
-              }
-            }
-          });
 
           pageContainer.appendChild(textLayerDiv);
         }
@@ -309,10 +255,81 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfDocument]);
 
+  // Global event delegation for hover and click
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let hoveredSegmentIndex: string | null = null;
+
+    const clearHover = () => {
+      if (!hoveredSegmentIndex) return;
+      // Select all elements with the class nr-s{index} across the entire container
+      container.querySelectorAll(`.nr-s${hoveredSegmentIndex}`).forEach(el => {
+        el.classList.remove('hovered');
+      });
+      hoveredSegmentIndex = null;
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Use closest to handle nested elements if any
+      const sentenceElement = target.closest('nr-sentence');
+      if (!sentenceElement) return;
+
+      const segmentIndex = sentenceElement.getAttribute('data-na-sen-ind');
+      if (!segmentIndex) return;
+
+      if (segmentIndex !== hoveredSegmentIndex) {
+        clearHover();
+        // Highlight all fragments of this sentence across all pages
+        container.querySelectorAll(`.nr-s${segmentIndex}`).forEach(el => {
+          el.classList.add('hovered');
+        });
+        hoveredSegmentIndex = segmentIndex;
+      }
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      const related = e.relatedTarget as HTMLElement | null;
+      // If moving within the same container, check if we are still on the same sentence
+      if (related && container.contains(related)) {
+        const relatedSentence = related.closest('nr-sentence');
+        // If the related target is also an nr-sentence with the same index, do nothing
+        if (relatedSentence &&
+          relatedSentence.getAttribute('data-na-sen-ind') === hoveredSegmentIndex) {
+          return;
+        }
+      }
+      clearHover();
+    };
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const sentenceElement = target.closest('nr-sentence');
+      if (sentenceElement) {
+        const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1');
+        playSegment(segmentIndex);
+      }
+    };
+
+    container.addEventListener('mouseover', handleMouseOver);
+    container.addEventListener('mouseout', handleMouseOut);
+    container.addEventListener('click', handleClick);
+    container.addEventListener('mouseleave', clearHover);
+
+    return () => {
+      container.removeEventListener('mouseover', handleMouseOver);
+      container.removeEventListener('mouseout', handleMouseOut);
+      container.removeEventListener('click', handleClick);
+      container.removeEventListener('mouseleave', clearHover);
+    };
+  }, [playSegment]); // Re-bind if playSegment changes (though it's from store so stable usually)
+
   // Sync Highlight with Playback - updated for wrapped structure
   useEffect(() => {
     // Always clear old state
-    document.querySelectorAll('.sentence-fragment.playing').forEach(el => {
+    document.querySelectorAll('nr-sentence.playing').forEach(el => {
       el.classList.remove('playing');
     });
 
@@ -320,9 +337,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     if (!storeSegments.length || playbackStatus === 'idle') return;
 
     if (currentSegmentIndex >= 0 && currentSegmentIndex < storeSegments.length) {
-      const currentElements = document.querySelectorAll(
-        `.sentence-fragment[data-sentence-index="${currentSegmentIndex}"]`
-      );
+      // Use the class selector nr-s{index} to find all fragments
+      const currentElements = document.querySelectorAll(`.nr-s${currentSegmentIndex}`);
       currentElements.forEach(el => el.classList.add('playing'));
     }
   }, [currentSegmentIndex, storeSegments, playbackStatus]);
