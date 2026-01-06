@@ -22,12 +22,17 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   segments: [],
   currentSegmentIndex: 0,
   playbackStatus: 'idle',
-  apiKey: null,
-  selectedVoice: null,
+    apiKey: null,
+    selectedVoice: typeof window !== 'undefined' ? (localStorage.getItem('selectedVoice') ?? null) : null,
   audioCache: new Map(),
 
   setApiKey: (key: string) => set({ apiKey: key }),
-  setSelectedVoice: (voiceURI: string) => set({ selectedVoice: voiceURI }),
+  setSelectedVoice: (voiceURI: string) => {
+      if (typeof window !== 'undefined') {
+          try { localStorage.setItem('selectedVoice', voiceURI); } catch {}
+      }
+      set({ selectedVoice: voiceURI });
+  },
 
   loadSegments: (segments: TextSegment[]) => set({ segments, currentSegmentIndex: 0, playbackStatus: 'idle' }),
 
