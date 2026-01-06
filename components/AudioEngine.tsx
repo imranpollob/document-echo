@@ -20,6 +20,9 @@ const hashString = (str: string) => {
 
 export const AudioEngine = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastHashRef = useRef<string | null>(null);
+  const lastUrlRef = useRef<string | null>(null);
+  const playCountRef = useRef<number>(0);
 
   // Subscribe to store state
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
@@ -43,6 +46,7 @@ export const AudioEngine = () => {
 
   const apiKey = useAudioStore(state => state.apiKey);
   const selectedVoice = useAudioStore(state => state.selectedVoice);
+  const useBrowserTTSForIndex = useAudioStore(state => state.useBrowserTTSForIndex);
 
   useEffect(() => {
     // Stop browser TTS on unmount or status change
@@ -65,15 +69,33 @@ export const AudioEngine = () => {
 
       if (blob) {
         // API Audio
+        // If this blob/hash is already loaded, avoid recreating the URL or re-setting src
+        if (lastHashRef.current === hash && lastUrlRef.current) {
+          playCountRef.current += 1;
+          console.log('[AudioEngine] audio.play() (reused) count=', playCountRef.current, { hash });
+          audio.play().catch(e => console.error("Play failed", e));
+          return;
+        }
+
+        // Clean up previous URL if any
+        if (lastUrlRef.current) {
+          try { URL.revokeObjectURL(lastUrlRef.current); } catch { }
+          lastUrlRef.current = null;
+          lastHashRef.current = null;
+        }
+
         const url = URL.createObjectURL(blob);
+        lastUrlRef.current = url;
+        lastHashRef.current = hash;
         audio.src = url;
+        playCountRef.current += 1;
+        console.log('[AudioEngine] audio.play() count=', playCountRef.current, { hash });
         audio.play().catch(e => console.error("Play failed", e));
 
         return () => {
-          URL.revokeObjectURL(url);
           audio.pause();
         }
-      } else if (!apiKey) {
+      } else if (!apiKey || useBrowserTTSForIndex === currentSegmentIndex) {
         // Browser TTS Fallback
         // Stop any previous
         window.speechSynthesis.cancel();
@@ -99,6 +121,21 @@ export const AudioEngine = () => {
       window.speechSynthesis.cancel();
     }
   }, [currentSegmentIndex, playbackStatus, segments, audioCache, apiKey, selectedVoice, next]);
+
+  // Cleanup object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (lastUrlRef.current) {
+        try { URL.revokeObjectURL(lastUrlRef.current); } catch { }
+        lastUrlRef.current = null;
+        lastHashRef.current = null;
+      }
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch { }
+      }
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   return null; // Headless
 };

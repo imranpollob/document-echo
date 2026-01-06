@@ -51,10 +51,12 @@ const VoiceSelector = () => {
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const setApiKey = useAudioStore(state => state.setApiKey);
+  const apiKey = useAudioStore(state => state.apiKey);
   const play = useAudioStore(state => state.play);
   const pause = useAudioStore(state => state.pause);
   const resume = useAudioStore(state => state.resume);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
+  const useBrowserTTSForIndex = useAudioStore(state => state.useBrowserTTSForIndex);
 
   // Removed auto-load of default PDF; user must choose a file.
 
@@ -104,6 +106,12 @@ export default function Home() {
         </button>
         <div className="text-sm self-center">Status: {playbackStatus}</div>
       </div>
+
+      {apiKey && useBrowserTTSForIndex !== null && (
+        <div className="mt-2 w-full max-w-2xl text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 p-2 rounded">
+          API request failed for the selected voice; continuing with local (browser) TTS for this segment.
+        </div>
+      )}
 
       <div className="">
         {file && <PdfViewer file={file} />}

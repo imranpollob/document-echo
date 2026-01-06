@@ -16,6 +16,7 @@ const hashString = (str: string) => {
 
 interface AudioStore extends AudioState {
   audioCache: Map<string, Blob>;
+    useBrowserTTSForIndex: number | null;
 }
 
 export const useAudioStore = create<AudioStore>((set, get) => ({
@@ -25,6 +26,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     apiKey: null,
     selectedVoice: typeof window !== 'undefined' ? (localStorage.getItem('selectedVoice') ?? null) : null,
   audioCache: new Map(),
+    useBrowserTTSForIndex: null,
 
   setApiKey: (key: string) => set({ apiKey: key }),
   setSelectedVoice: (voiceURI: string) => {
@@ -43,7 +45,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     // Stop any ongoing playback immediately
     set({ playbackStatus: 'paused' });
 
-    set({ currentSegmentIndex: index, playbackStatus: 'loading' });
+    set({ currentSegmentIndex: index, playbackStatus: 'loading', useBrowserTTSForIndex: null });
     
     // Trigger prefetch for next segments if API key is present
     if (apiKey) {
@@ -88,13 +90,14 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
                 set(state => {
                         const newCache = new Map(state.audioCache);
                         newCache.set(hash, blob!);
-                        return { audioCache: newCache };
+                            // Ensure we clear any browser fallback for this segment since we now have an API blob
+                            return { audioCache: newCache, useBrowserTTSForIndex: null };
                     });
             } catch (error) {
-                console.error("TTS API Error", error);
-                set({ playbackStatus: 'paused' });
-                alert("API Error: " + (error as any).message);
-                return;
+                    console.error("TTS API Error", error);
+                    // If API fails, fall back to browser TTS for this segment only
+                    set({ useBrowserTTSForIndex: index });
+                    // Let AudioEngine handle fallback to browser TTS (do not return)
             }
         }
     } else {
@@ -110,7 +113,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       if (currentSegmentIndex < segments.length - 1) {
           playSegment(currentSegmentIndex + 1);
       } else {
-          set({ playbackStatus: 'idle' });
+          set({ playbackStatus: 'idle', useBrowserTTSForIndex: null });
       }
   },
 
