@@ -61,9 +61,12 @@ export class TextNormalizer {
       if (endExclusive <= segStart) return;
 
       const rawSegment = text.slice(segStart, endExclusive);
-      // Collapse any whitespace (including newlines) into single spaces
-      // so TTS receives a single-line sentence while span mapping is preserved.
-      const segmentText = rawSegment.replace(/\s+/g, ' ').trim();
+
+      // Remove hyphenation that occurs at line breaks / span boundaries.
+      // This removes a hyphen followed by any whitespace/newline so that
+      // "re-\nports" or "re- ports" becomes "reports". We then
+      // collapse other whitespace into single spaces.
+      const segmentText = rawSegment.replace(/-\s+/g, '').replace(/\s+/g, ' ').trim();
       if (!segmentText) {
         segStart = endExclusive;
         return;
@@ -95,6 +98,11 @@ export class TextNormalizer {
       if (buffer && currentSpan) {
         spanFragments.push({ spanId: currentSpan, text: buffer });
       }
+
+      // NOTE: Do not modify `spanFragments` here — UI should remain
+      // unchanged. `segmentText` above has already been cleaned for TTS
+      // (hyphen+whitespace removed). We keep fragments as-extracted so
+      // the visual rendering matches original PDF spans.
 
       segments.push({
         id: crypto.randomUUID(),

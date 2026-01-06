@@ -166,6 +166,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           await page.render({
             canvasContext: context,
             viewport: viewport,
+            canvas: canvas,
           }).promise;
         }
 
