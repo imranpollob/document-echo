@@ -65,7 +65,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 gap-8">
+    <main className="flex flex-col items-center">
       {apiKey && useBrowserTTSForIndex !== null && (
         <div className="mt-2 w-full max-w-2xl text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 p-2 rounded">
           API request failed for the selected voice; continuing with local (browser) TTS for this segment.

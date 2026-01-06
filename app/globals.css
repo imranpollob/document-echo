@@ -245,8 +245,8 @@ nr-sentence.playing {
   border-radius: 10px;
   padding: 12px;
   box-shadow: 0 12px 40px rgba(2, 6, 23, 0.12);
-  min-width: 260px;
-  max-width: 420px;
+  /* min-width: 260px; */
+  /* max-width: 420px; */
   font-size: 13px;
 }
 

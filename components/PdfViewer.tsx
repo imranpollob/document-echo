@@ -320,11 +320,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
     <div className="flex flex-col items-center gap-4 w-full">
       <div
         ref={containerRef}
-        className="pdf-container border border-gray-300 shadow-lg overflow-y-auto"
-        style={{
-          maxHeight: '80vh',
-          padding: '20px'
-        }}
+        className="pdf-container"
       />
     </div>
   );
