@@ -28,6 +28,7 @@ export default function AudioBar() {
   const apiBtnRef = useRef<HTMLButtonElement | null>(null);
   const [apiPopPos, setApiPopPos] = useState<{ right: number; top: number } | null>(null);
   const [apiInput, setApiInput] = useState<string>(apiKey ?? '');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const load = () => {
@@ -70,6 +71,23 @@ export default function AudioBar() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = window.localStorage.getItem('theme');
+    const initial = saved === 'dark' ? 'dark' : 'light';
+    setTheme(initial);
+    document.documentElement.setAttribute('data-theme', initial);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('theme', next);
+      document.documentElement.setAttribute('data-theme', next);
+    }
+  };
+
   return (
     <div className="audio-bar">
       <div className="audio-bar-inner">
@@ -90,12 +108,12 @@ export default function AudioBar() {
               }
               setOpen(v => !v);
             }}
-            className="avatar"
+            className="theme-btn"
             aria-expanded={open}
           >
             <span className="avatar-emoji" aria-hidden="true">💬</span>
           </button>
-          {/* Display selected voice name next to avatar */}
+
           <div className="voice-label" aria-hidden={!mounted}>
             {mounted ? (() => {
               const found = voices.find(v => v.voiceURI === selectedVoice);
@@ -159,63 +177,74 @@ export default function AudioBar() {
         </div>
 
         <div className="audio-right">
-          <div style={{ marginLeft: 12, position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
-              ref={apiBtnRef}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               type="button"
-              className="avatar"
-              title="OpenAI API Key"
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = apiBtnRef.current?.getBoundingClientRect();
-                if (rect) {
-                  // position popover similar to avatar but anchored on the right side
-                  setApiPopPos({ right: Math.max(8, Math.round(window.innerWidth - rect.right)), top: rect.top - 8 });
-                } else setApiPopPos(null);
-                setApiInput(apiKey ?? '');
-                setApiOpen(v => !v);
-              }}
-
+              className="theme-btn"
+              onClick={toggleTheme}
             >
-              <span className="api-emoji" aria-hidden="true">🔑</span>
+              {theme === 'dark' ? '🌙' : '🌞'}
             </button>
 
-            {apiOpen && (
-              <div
-                ref={apiPopRef}
-                className="api-popover"
-                style={{
-                  position: 'fixed',
-                  right: apiPopPos ? `${apiPopPos.right}px` : '8px',
-                  bottom: '80px',
-                  zIndex: 99999,
+            <div>
+              <button
+                ref={apiBtnRef}
+                type="button"
+                className="theme-btn"
+                title="OpenAI API Key"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = apiBtnRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    // position popover similar to avatar but anchored on the right side
+                    setApiPopPos({ right: Math.max(8, Math.round(window.innerWidth - rect.right)), top: rect.top - 8 });
+                  } else setApiPopPos(null);
+                  setApiInput(apiKey ?? '');
+                  setApiOpen(v => !v);
                 }}
+
               >
-                <div className="popover-content">
-                  <div className="popover-title">OpenAI API Key (optional)</div>
-                  <input
-                    value={apiInput}
-                    onChange={(e) => setApiInput(e.target.value)}
-                    placeholder="sk..."
-                    className="popover-input"
-                  />
-                  <div className="popover-actions">
-                    <button
-                      onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
-                      className="popover-btn popover-btn--muted"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
-                      className="popover-btn popover-btn--primary"
-                    >
-                      Save
-                    </button>
+                <span className="api-emoji" aria-hidden="true">🔑</span>
+              </button>
+
+              {apiOpen && (
+                <div
+                  ref={apiPopRef}
+                  className="api-popover"
+                  style={{
+                    position: 'fixed',
+                    right: apiPopPos ? `${apiPopPos.right}px` : '8px',
+                    bottom: '80px',
+                    zIndex: 99999,
+                  }}
+                >
+                  <div className="popover-content">
+                    <div className="popover-title">OpenAI API Key (optional)</div>
+                    <input
+                      value={apiInput}
+                      onChange={(e) => setApiInput(e.target.value)}
+                      placeholder="sk..."
+                      className="popover-input"
+                    />
+                    <div className="popover-actions">
+                      <button
+                        onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
+                        className="popover-btn popover-btn--muted"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
+                        className="popover-btn popover-btn--primary"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

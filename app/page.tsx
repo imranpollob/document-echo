@@ -72,10 +72,10 @@ export default function Home() {
         </div>
       )}
 
-      <div className="the-pdf-viewer w-full max-w-4xl">
+      <div className={`the-pdf-viewer w-full max-w-4xl ${!file ? 'centered' : ''}`}>
         {!file ? (
           <div
-            className={`border border-dashed rounded p-12 flex flex-col items-center justify-center gap-4 bg-white ${dragActive ? 'ring-2 ring-offset-2 ring-blue-300' : ''}`}
+            className={`drop-area ${dragActive ? 'drag-active' : ''}`}
             onClick={handleDropAreaClick}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -93,9 +93,9 @@ export default function Home() {
             />
 
             <div className="text-lg font-semibold">Choose file or drag and drop a PDF here</div>
-            <div className="text-sm text-gray-600">Click to browse or drop a PDF file</div>
+            <div className="text-sm drop-muted">Click to browse or drop a PDF file</div>
             <button
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+              className="drop-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDropAreaClick();
