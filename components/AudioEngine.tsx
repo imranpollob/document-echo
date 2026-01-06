@@ -78,6 +78,7 @@ export const AudioEngine = () => {
         // Stop any previous
         window.speechSynthesis.cancel();
 
+        console.log("TTS (browser) send:", segment.text);
         const utterance = new SpeechSynthesisUtterance(segment.text);
         if (selectedVoice) {
           const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === selectedVoice);

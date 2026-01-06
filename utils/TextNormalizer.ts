@@ -60,7 +60,10 @@ export class TextNormalizer {
     const flushSegment = (endExclusive: number) => {
       if (endExclusive <= segStart) return;
 
-      const segmentText = text.slice(segStart, endExclusive).trim();
+      const rawSegment = text.slice(segStart, endExclusive);
+      // Collapse any whitespace (including newlines) into single spaces
+      // so TTS receives a single-line sentence while span mapping is preserved.
+      const segmentText = rawSegment.replace(/\s+/g, ' ').trim();
       if (!segmentText) {
         segStart = endExclusive;
         return;
