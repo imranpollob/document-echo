@@ -23,6 +23,12 @@ export interface AudioState {
   apiKey: string | null;
   selectedVoice: string | null; // For browser TTS
   
+  // PDF zoom state
+  scale: number;
+  setScale: (scale: number) => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  
   // Actions
   setApiKey: (key: string) => void;
   setSelectedVoice: (voiceURI: string) => void;
