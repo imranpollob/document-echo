@@ -79,12 +79,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       });
     });
 
-    console.info('[PdfViewer] tagging page', pageNumber, {
-      textDivs: textDivs.length,
-      spansWithFragments: spanToFragments.size,
-      segmentOffset,
-      segmentsOnPage: segments.length,
-    });
+
 
     // Match generated spans to textItems (pdf.js generally aligns by index)
     let itemPtr = 0;
@@ -114,7 +109,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           });
         } else {
           // Log spans that didn't get matched
-          console.debug('[PdfViewer] no fragments for span', spanId, 'text:', span.textContent);
+
         }
 
         itemPtr++;
@@ -147,19 +142,13 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         // Create page container
         const pageContainer = document.createElement('div');
         pageContainer.className = 'pdf-page-container';
-        pageContainer.style.position = 'relative';
-        pageContainer.style.marginBottom = '30px';
-        pageContainer.style.width = `${viewport.width}px`;
-        pageContainer.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-        pageContainer.style.backgroundColor = 'white';
+        pageContainer.className = 'pdf-page-container styled-page-container';
 
         // Create canvas for the page
         const canvas = document.createElement('canvas');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        canvas.className = 'block';
-        canvas.style.pointerEvents = 'none';
-        canvas.style.zIndex = '1';
+        canvas.className = 'block pdf-canvas';
 
         const context = canvas.getContext('2d');
         if (context) {
@@ -179,14 +168,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         const pageSegments = TextNormalizer.normalize(textContent.items, pageNum);
 
         const textLayerDiv = document.createElement('div');
-        textLayerDiv.className = 'textLayer';
-        textLayerDiv.style.position = 'absolute';
-        textLayerDiv.style.top = '0';
-        textLayerDiv.style.left = '0';
-        textLayerDiv.style.width = `${viewport.width}px`;
-        textLayerDiv.style.height = `${viewport.height}px`;
-        textLayerDiv.style.pointerEvents = 'auto';
-        textLayerDiv.style.zIndex = '100';
+        textLayerDiv.className = 'textLayer pdf-textLayer';
 
         const textLayer = new TextLayerBuilder({
           pdfPage: page,
@@ -205,21 +187,16 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
           console.log(`Page ${pageNum}: Found ${spans.length} spans to tag.`);
 
+
           tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
 
           // Ensure pointer events and stacking for hover/click
-          textLayer.div.style.pointerEvents = 'auto';
-          textLayer.div.style.position = 'absolute';
-          textLayer.div.style.top = '0';
-          textLayer.div.style.left = '0';
-          textLayer.div.style.zIndex = '100';
+          textLayer.div.classList.add('pdf-textLayer-inner');
 
           spans.forEach(s => {
-            s.style.pointerEvents = 'auto';
-            s.style.zIndex = '100';
+            s.classList.add('pdf-span');
             s.querySelectorAll('nr-sentence').forEach(nr => {
-              (nr as HTMLElement).style.pointerEvents = 'auto';
-              (nr as HTMLElement).style.zIndex = '100';
+              (nr as HTMLElement).classList.add('pdf-nr-sentence');
             });
           });
 
@@ -229,7 +206,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
           }
 
           const sentencesCount = textLayerDiv.querySelectorAll('nr-sentence').length;
-          console.info('[PdfViewer] sentences in textLayerDiv', sentencesCount);
+
 
           pageContainer.appendChild(textLayerDiv);
         }
@@ -281,6 +258,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       if (!segmentIndex) return;
 
       console.info('[PdfViewer] hover sentence', segmentIndex, 'target', target.tagName);
+
       if (segmentIndex !== hoveredSegmentIndex) {
         setHoveredSegment(segmentIndex);
       }
@@ -292,6 +270,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       if (sentenceElement) {
         const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1', 10);
         console.info('[PdfViewer] click sentence', segmentIndex);
+
         playSegment(segmentIndex);
       }
     };

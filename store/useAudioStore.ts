@@ -75,7 +75,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
 
         if (!blob) {
             try {
-                console.log("TTS (API) send:", segment.text);
+                // TTS (API) request initiated for segment
                 const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
                 const response = await openai.audio.speech.create({
                     model: "tts-1",
@@ -154,8 +154,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
        }
 
        if (apiKey) {
-           // Fire and forget fetch
-           console.log("TTS (API prefetch) send:", segment.text);
+           // Fire and forget fetch for prefetching audio
            const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
            openai.audio.speech.create({
                 model: "tts-1",

@@ -33,6 +33,7 @@ body {
   background-color: rgba(0, 0, 0, 0.12);
 }
 
+
 .textLayer span[role="presentation"].playing {
   background-color: rgba(255, 255, 0, 0.4) !important;
 }
@@ -104,15 +105,15 @@ nr-sentence.playing {
 .audio-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  /* gap: 12px; */
   grid-column: 1 / 2;
   justify-self: start;
   z-index: 200;
 }
 
 .avatar {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border-radius: 999px;
   display: flex;
   align-items: center;
@@ -144,8 +145,8 @@ nr-sentence.playing {
   background: #2b6ce4;
   color: white;
   border: none;
-  width: 56px;
-  height: 56px;
+  width: 45px;
+  height: 45px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -158,23 +159,132 @@ nr-sentence.playing {
 .audio-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* gap: 8px; */
   grid-column: 3 / 4;
   justify-self: end;
   z-index: 200;
 }
 
-.audio-speed {
-  font-weight: 600;
-  color: #333;
-}
-
 .voice-label {
-  margin-left: 10px;
+  margin-left: 5px;
   font-size: 13px;
   color: #222;
   max-width: 220px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 240px;
+}
+
+/* PDF viewer layout styles moved from inline styles in PdfViewer.tsx */
+.pdf-page-container {
+  position: relative;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background-color: white;
+}
+
+.pdf-canvas {
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pdf-textLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.pdf-textLayer-inner {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+}
+
+.pdf-span {
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.pdf-nr-sentence {
+  pointer-events: auto;
+  z-index: 100;
+}
+
+/* Popover styles for AudioBar */
+.voice-popover,
+.api-popover {
+  position: fixed;
+  bottom: 80px;
+  z-index: 99999;
+}
+
+.voice-popover .voice-list {
+  min-width: 240px;
+  max-width: 420px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.voice-item>div {
+  font-size: 13px;
+}
+
+.voice-item>div span {
+  color: #666;
+  font-size: 12px;
+}
+
+.popover-content {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 12px 40px rgba(2, 6, 23, 0.12);
+  min-width: 260px;
+  max-width: 420px;
+  font-size: 13px;
+}
+
+.popover-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.popover-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.popover-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.popover-btn {
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.popover-btn--muted {
+  background: transparent;
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.popover-btn--primary {
+  background: #2b6ce4;
+  color: white;
+  border-color: rgba(43, 108, 228, 0.2);
 }

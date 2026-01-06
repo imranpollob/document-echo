@@ -72,8 +72,17 @@ export const AudioEngine = () => {
         // If this blob/hash is already loaded, avoid recreating the URL or re-setting src
         if (lastHashRef.current === hash && lastUrlRef.current) {
           playCountRef.current += 1;
-          console.log('[AudioEngine] audio.play() (reused) count=', playCountRef.current, { hash });
-          audio.play().catch(e => console.error("Play failed", e));
+          (async () => {
+            try {
+              await audio.play();
+            } catch (e: any) {
+              if (e && e.name === 'AbortError') {
+                // ignore aborted play caused by pause()
+              } else {
+                console.error('Play failed', e);
+              }
+            }
+          })();
           return;
         }
 
@@ -89,18 +98,27 @@ export const AudioEngine = () => {
         lastHashRef.current = hash;
         audio.src = url;
         playCountRef.current += 1;
-        console.log('[AudioEngine] audio.play() count=', playCountRef.current, { hash });
-        audio.play().catch(e => console.error("Play failed", e));
+        (async () => {
+          try {
+            await audio.play();
+          } catch (e: any) {
+            if (e && e.name === 'AbortError') {
+              // ignore aborted play caused by pause()
+            } else {
+              console.error('Play failed', e);
+            }
+          }
+        })();
 
         return () => {
-          audio.pause();
+          try { audio.pause(); } catch { }
         }
       } else if (!apiKey || useBrowserTTSForIndex === currentSegmentIndex) {
         // Browser TTS Fallback
         // Stop any previous
         window.speechSynthesis.cancel();
 
-        console.log("TTS (browser) send:", segment.text);
+        // Browser TTS invoked for segment
         const utterance = new SpeechSynthesisUtterance(segment.text);
         if (selectedVoice) {
           const voice = window.speechSynthesis.getVoices().find(v => v.voiceURI === selectedVoice);
@@ -114,10 +132,10 @@ export const AudioEngine = () => {
         window.speechSynthesis.speak(utterance);
 
         // Audio element is not used
-        audio.pause();
+        try { audio.pause(); } catch { }
       }
     } else if (playbackStatus === 'paused' || playbackStatus === 'idle') {
-      audio.pause();
+      try { audio.pause(); } catch { }
       window.speechSynthesis.cancel();
     }
   }, [currentSegmentIndex, playbackStatus, segments, audioCache, apiKey, selectedVoice, next]);

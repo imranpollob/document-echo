@@ -19,7 +19,7 @@ export default function AudioBar() {
   const popRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
-  const [popPos, setPopPos] = useState<{ left: number; top: number } | null>(null);
+  const [popPos, setPopPos] = useState<{ x: number } | null>(null);
   // API key popover
   const apiKey = useAudioStore(s => s.apiKey);
   const setApiKey = useAudioStore(s => s.setApiKey);
@@ -77,28 +77,23 @@ export default function AudioBar() {
           <button
             ref={avatarRef}
             type="button"
-            className="avatar"
             title="Select voice"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('[AudioBar] avatar clicked, open=', open);
               // compute popover position relative to viewport
               const rect = avatarRef.current?.getBoundingClientRect();
               if (rect) {
-                // position popover above the avatar
-                setPopPos({ left: Math.max(8, rect.left), top: rect.top - 8 });
+                // center popover above the avatar using its mid-point
+                setPopPos({ x: Math.round(rect.left + rect.width / 2) });
               } else {
                 setPopPos(null);
               }
               setOpen(v => !v);
             }}
-            style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 0 }}
+            className="avatar"
             aria-expanded={open}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#2B6CE4" />
-              <path d="M4 20c0-2.21 3.58-4 8-4s8 1.79 8 4v1H4v-1z" fill="#DCEEFF" />
-            </svg>
+            <span className="avatar-emoji" aria-hidden="true">💬</span>
           </button>
           {/* Display selected voice name next to avatar */}
           <div className="voice-label" aria-hidden={!mounted}>
@@ -115,20 +110,22 @@ export default function AudioBar() {
               className="voice-popover"
               style={{
                 position: 'fixed',
-                left: popPos ? `${popPos.left}px` : '8px',
+                left: popPos ? `${popPos.x}px` : '8px',
                 bottom: '80px',
                 zIndex: 99999,
               }}
             >
-              <div className="voice-list" style={{ maxHeight: 220, overflow: 'auto', background: 'white', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+              <div className="popover-content">
                 {voices.length === 0 ? (
                   <div className="px-2 py-1 text-sm text-gray-600">No voices</div>
                 ) : (
-                  voices.map(v => (
-                    <div key={v.voiceURI} className={`voice-item p-2 rounded hover:bg-gray-50 ${selectedVoice === v.voiceURI ? 'bg-gray-100' : ''}`} style={{ cursor: 'pointer' }} onClick={() => { setSelectedVoice(v.voiceURI); setOpen(false); }}>
-                      <div style={{ fontSize: 13 }}>{v.name} <span style={{ color: '#666', fontSize: 12 }}>({v.lang})</span></div>
-                    </div>
-                  ))
+                  <div className="voice-list">
+                    {voices.map(v => (
+                      <div key={v.voiceURI} className={`voice-item p-2 rounded hover:bg-gray-50 ${selectedVoice === v.voiceURI ? 'bg-gray-100' : ''}`} onClick={() => { setSelectedVoice(v.voiceURI); setOpen(false); }}>
+                        <div>{v.name} <span>({v.lang})</span></div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -162,12 +159,11 @@ export default function AudioBar() {
         </div>
 
         <div className="audio-right">
-          <div className="audio-speed">2x</div>
           <div style={{ marginLeft: 12, position: 'relative' }}>
             <button
               ref={apiBtnRef}
               type="button"
-              className="api-btn"
+              className="avatar"
               title="OpenAI API Key"
               onClick={(e) => {
                 e.stopPropagation();
@@ -179,12 +175,9 @@ export default function AudioBar() {
                 setApiInput(apiKey ?? '');
                 setApiOpen(v => !v);
               }}
-              style={{ cursor: 'pointer', border: 'none', background: 'transparent', padding: 6 }}
+
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="#2B6CE4" strokeWidth="1.2" fill="none" />
-                <path d="M7 10h10M7 14h6" stroke="#2B6CE4" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
+              <span className="api-emoji" aria-hidden="true">🔑</span>
             </button>
 
             {apiOpen && (
@@ -198,24 +191,24 @@ export default function AudioBar() {
                   zIndex: 99999,
                 }}
               >
-                <div style={{ width: 320, background: 'white', border: '1px solid rgba(0,0,0,0.12)', borderRadius: 8, padding: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
-                  <div style={{ fontSize: 13, marginBottom: 8 }}>OpenAI API Key (optional)</div>
+                <div className="popover-content">
+                  <div className="popover-title">OpenAI API Key (optional)</div>
                   <input
                     value={apiInput}
                     onChange={(e) => setApiInput(e.target.value)}
-                    placeholder="sk-..."
-                    style={{ width: '100%', padding: 8, border: '1px solid #e5e7eb', borderRadius: 6, marginBottom: 8 }}
+                    placeholder="sk..."
+                    className="popover-input"
                   />
-                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <div className="popover-actions">
                     <button
                       onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
-                      style={{ padding: '6px 10px', borderRadius: 6, background: '#f3f4f6', border: 'none' }}
+                      className="popover-btn popover-btn--muted"
                     >
                       Clear
                     </button>
                     <button
                       onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
-                      style={{ padding: '6px 10px', borderRadius: 6, background: '#2B6CE4', color: 'white', border: 'none' }}
+                      className="popover-btn popover-btn--primary"
                     >
                       Save
                     </button>
