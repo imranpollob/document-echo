@@ -13,6 +13,7 @@ const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mo
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
+  const [pdfMaxWidth, setPdfMaxWidth] = useState<number>(1024);
   const setApiKey = useAudioStore(state => state.setApiKey);
   const apiKey = useAudioStore(state => state.apiKey);
   const play = useAudioStore(state => state.play);
@@ -35,6 +36,35 @@ export default function Home() {
   const handleDropAreaClick = () => {
     fileInputRef.current?.click();
   };
+
+  // Resizer logic for adjusting PDF max width
+  useEffect(() => {
+    let startX = 0;
+    let startWidth = 0;
+    let resizing = false;
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!resizing) return;
+      const dx = e.clientX - startX;
+      const next = Math.max(480, Math.min(1600, startWidth + dx));
+      setPdfMaxWidth(next);
+    };
+    const onPointerUp = () => { resizing = false; document.removeEventListener('pointermove', onPointerMove); document.removeEventListener('pointerup', onPointerUp); };
+
+    const el = document.querySelector('.the-pdf-viewer .resizer');
+    if (!el) return;
+    const onPointerDown = (ev: PointerEvent) => {
+      resizing = true;
+      startX = ev.clientX;
+      startWidth = (document.querySelector('.the-pdf-viewer') as HTMLElement)?.clientWidth || pdfMaxWidth;
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+    };
+    el.addEventListener('pointerdown', onPointerDown as any);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown as any);
+    };
+  }, [pdfMaxWidth]);
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -72,7 +102,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className={`the-pdf-viewer w-full max-w-4xl ${!file ? 'centered' : ''}`}>
+      <div className={`the-pdf-viewer w-full ${!file ? 'centered' : ''}`} style={{ maxWidth: `${pdfMaxWidth}px` }}>
         {!file ? (
           <div
             className={`drop-area ${dragActive ? 'drag-active' : ''}`}
@@ -105,7 +135,10 @@ export default function Home() {
             </button>
           </div>
         ) : (
-          <PdfViewer file={file} />
+          <>
+            <PdfViewer file={file} />
+            <div className="resizer" role="separator" aria-orientation="vertical" />
+          </>
         )}
       </div>
 

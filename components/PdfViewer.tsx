@@ -21,6 +21,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDocument, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const scale = useAudioStore(state => state.scale);
 
   // Store actions
   const loadSegments = useAudioStore(state => state.loadSegments);
@@ -137,7 +138,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
         if (isCancelled) return;
 
         const page = await pdfDocument.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale });
 
         // Create page container
         const pageContainer = document.createElement('div');
@@ -228,7 +229,9 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       isCancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdfDocument]);
+  }, [pdfDocument, scale]);
+
+
 
   // Global event delegation for hover and click
   useEffect(() => {
@@ -317,7 +320,8 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
+    <div className="flex flex-col items-center gap-4 w-full" style={{ position: 'relative' }}>
+      {/* Zoom controls moved to AudioBar */}
       <div
         ref={containerRef}
         className="pdf-container"

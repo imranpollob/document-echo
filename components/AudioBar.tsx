@@ -108,7 +108,7 @@ export default function AudioBar() {
               }
               setOpen(v => !v);
             }}
-            className="theme-btn"
+            className="avatar"
             aria-expanded={open}
           >
             <span className="avatar-emoji" aria-hidden="true">💬</span>
@@ -186,13 +186,11 @@ export default function AudioBar() {
             >
               {theme === 'dark' ? '🌙' : '🌞'}
             </button>
+            <button className="audio-zoom-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
+            <button className="audio-zoom-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
 
             <div>
               <button
-                ref={apiBtnRef}
-                type="button"
-                className="theme-btn"
-                title="OpenAI API Key"
                 onClick={(e) => {
                   e.stopPropagation();
                   const rect = apiBtnRef.current?.getBoundingClientRect();
@@ -204,6 +202,10 @@ export default function AudioBar() {
                   setApiOpen(v => !v);
                 }}
 
+                ref={apiBtnRef}
+                type="button"
+                className="control-btn"
+                title="OpenAI API Key"
               >
                 <span className="api-emoji" aria-hidden="true">🔑</span>
               </button>

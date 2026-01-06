@@ -97,6 +97,29 @@ body {
 .textLayer span[role="presentation"].segment-span {
   transition: background-color 0.15s ease;
   cursor: pointer;
+
+  /* Shared control button style for avatar / api to match theme/zoom buttons */
+  .control-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  .control-btn:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+
+  .avatar-emoji,
+  .api-emoji {
+    font-size: 16px;
+  }
 }
 
 .textLayer span[role="presentation"].segment-span.hovered {
@@ -202,6 +225,19 @@ nr-sentence.playing {
   border: none;
   cursor: pointer;
   font-size: 16px;
+}
+
+.audio-zoom-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.audio-zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .audio-controls {
@@ -379,4 +415,50 @@ nr-sentence.playing {
   background: #2b6ce4;
   color: white;
   border-color: rgba(43, 108, 228, 0.2);
+}
+
+/* Zoom toolbar for PDF viewer */
+.zoom-toolbar {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(5, 10, 20, 0.85);
+  color: white;
+  border-radius: 8px;
+  padding: 8px;
+  z-index: 400;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.6);
+}
+
+.zoom-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.zoom-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+
+/* Resizer handle for `.the-pdf-viewer` */
+.the-pdf-viewer {
+  position: relative;
+}
+
+.the-pdf-viewer .resizer {
+  position: absolute;
+  right: -6px;
+  top: 8px;
+  bottom: 8px;
+  width: 12px;
+  cursor: ew-resize;
+  z-index: 500;
 }

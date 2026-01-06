@@ -172,4 +172,10 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
        }
   }
 
+    // PDF zoom state (shared)
+    , scale: 1.5,
+    setScale: (s: number) => set({ scale: s }),
+    zoomIn: () => set(state => ({ scale: Math.min(4, +(state.scale * 1.2).toFixed(3)) })),
+    zoomOut: () => set(state => ({ scale: Math.max(0.2, +(state.scale / 1.2).toFixed(3)) })),
+
 }));
