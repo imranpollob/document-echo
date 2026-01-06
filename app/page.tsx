@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { AudioEngine } from '../components/AudioEngine';
 import { useAudioStore } from '../store/useAudioStore';
@@ -9,44 +9,7 @@ const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mo
   ssr: false,
 });
 
-const VoiceSelector = () => {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const selectedVoice = useAudioStore(state => state.selectedVoice);
-  const setSelectedVoice = useAudioStore(state => state.setSelectedVoice);
-
-  useEffect(() => {
-    const loadVoices = () => {
-      const vs = window.speechSynthesis.getVoices();
-      setVoices(vs);
-      // Default to first English voice if none selected
-      if (!selectedVoice && vs.length > 0) {
-        const enVoice = vs.find(v => v.lang.startsWith('en'));
-        if (enVoice) setSelectedVoice(enVoice.voiceURI);
-      }
-    };
-
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => { window.speechSynthesis.onvoiceschanged = null; };
-  }, [selectedVoice, setSelectedVoice]);
-
-  if (voices.length === 0) return null;
-
-  return (
-    <select
-      className="border p-2 rounded w-full bg-white"
-      value={selectedVoice || ''}
-      onChange={(e) => setSelectedVoice(e.target.value)}
-    >
-      <option value="">Default Browser Voice</option>
-      {voices.map(v => (
-        <option key={v.voiceURI} value={v.voiceURI}>
-          {v.name} ({v.lang})
-        </option>
-      ))}
-    </select>
-  );
-}
+// Voice selection is handled in the persistent AudioBar component.
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
@@ -66,6 +29,31 @@ export default function Home() {
     }
   };
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  const handleDropAreaClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+    if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragActive(false);
+  };
+
   const handlePlayPause = () => {
     if (playbackStatus === 'playing') {
       pause();
@@ -78,43 +66,47 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-8 gap-8">
-      <div className="flex flex-col gap-4 w-full max-w-2xl">
-        <div className="flex gap-4 w-full">
-          <input
-            type="text"
-            placeholder="OpenAI API Key (Optional)"
-            className="border p-2 rounded grow"
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
-          />
-        </div>
-        <VoiceSelector />
-      </div>
-
-      <div className="flex gap-4">
-        <button
-          onClick={handlePlayPause}
-          disabled={!file}
-          className="bg-blue-500 text-white px-4 py-2 rounded disabled:opacity-50 min-w-[100px]"
-        >
-          {playbackStatus === 'playing' ? 'Pause' : playbackStatus === 'loading' ? 'Loading...' : 'Play'}
-        </button>
-        <div className="text-sm self-center">Status: {playbackStatus}</div>
-      </div>
-
       {apiKey && useBrowserTTSForIndex !== null && (
         <div className="mt-2 w-full max-w-2xl text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 p-2 rounded">
           API request failed for the selected voice; continuing with local (browser) TTS for this segment.
         </div>
       )}
 
-      <div className="">
-        {file && <PdfViewer file={file} />}
+      <div className="the-pdf-viewer w-full max-w-4xl">
+        {!file ? (
+          <div
+            className={`border border-dashed rounded p-12 flex flex-col items-center justify-center gap-4 bg-white ${dragActive ? 'ring-2 ring-offset-2 ring-blue-300' : ''}`}
+            onClick={handleDropAreaClick}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragOver}
+            onDragLeave={handleDragLeave}
+            role="button"
+            tabIndex={0}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+
+            <div className="text-lg font-semibold">Choose file or drag and drop a PDF here</div>
+            <div className="text-sm text-gray-600">Click to browse or drop a PDF file</div>
+            <button
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDropAreaClick();
+              }}
+            >
+              Choose File
+            </button>
+          </div>
+        ) : (
+          <PdfViewer file={file} />
+        )}
       </div>
 
       <AudioEngine />
