@@ -117,7 +117,19 @@ export class TextNormalizer {
 
     for (let i = 0; i < fullTextChars.length; i++) {
       const ch = fullTextChars[i];
-      const isSentenceEnd = /[.!?]/.test(ch);
+      let isSentenceEnd = /[.!?]/.test(ch);
+
+      // If this is a period and it sits between two digits (e.g. 0.2,
+      // 123.456) treat it as part of a numeric literal rather than a
+      // sentence terminator so we don't split decimals into two
+      // sentences.
+      if (isSentenceEnd && ch === '.') {
+        const prev = i > 0 ? fullTextChars[i - 1] : '';
+        const next = i + 1 < fullTextChars.length ? fullTextChars[i + 1] : '';
+        if (/\d/.test(prev) && /\d/.test(next)) {
+          isSentenceEnd = false;
+        }
+      }
 
       if (isSentenceEnd) {
         flushSegment(i + 1);
