@@ -108,7 +108,7 @@ export default function AudioBar() {
               }
               setOpen(v => !v);
             }}
-            className="avatar"
+            className="bar-btn"
             aria-expanded={open}
           >
             <span className="avatar-emoji" aria-hidden="true">💬</span>
@@ -139,7 +139,7 @@ export default function AudioBar() {
                 ) : (
                   <div className="voice-list">
                     {voices.map(v => (
-                      <div key={v.voiceURI} className={`voice-item p-2 rounded hover:bg-gray-50 ${selectedVoice === v.voiceURI ? 'bg-gray-100' : ''}`} onClick={() => { setSelectedVoice(v.voiceURI); setOpen(false); }}>
+                      <div key={v.voiceURI} className={`voice-item p-2 rounded ${selectedVoice === v.voiceURI ? 'selected' : ''}`} onClick={() => { setSelectedVoice(v.voiceURI); setOpen(false); }}>
                         <div>{v.name} <span>({v.lang})</span></div>
                       </div>
                     ))}
@@ -181,13 +181,13 @@ export default function AudioBar() {
             <button
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               type="button"
-              className="theme-btn"
+              className="bar-btn"
               onClick={toggleTheme}
             >
               {theme === 'dark' ? '🌙' : '🌞'}
             </button>
-            <button className="audio-zoom-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
-            <button className="audio-zoom-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
+            <button className="bar-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
+            <button className="bar-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
 
             <div>
               <button
@@ -204,7 +204,7 @@ export default function AudioBar() {
 
                 ref={apiBtnRef}
                 type="button"
-                className="control-btn"
+                className="bar-btn"
                 title="OpenAI API Key"
               >
                 <span className="api-emoji" aria-hidden="true">🔑</span>

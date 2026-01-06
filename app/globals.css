@@ -97,29 +97,6 @@ body {
 .textLayer span[role="presentation"].segment-span {
   transition: background-color 0.15s ease;
   cursor: pointer;
-
-  /* Shared control button style for avatar / api to match theme/zoom buttons */
-  .control-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    cursor: pointer;
-    font-size: 16px;
-  }
-
-  .control-btn:hover {
-    background: rgba(0, 0, 0, 0.03);
-  }
-
-  .avatar-emoji,
-  .api-emoji {
-    font-size: 16px;
-  }
 }
 
 .textLayer span[role="presentation"].segment-span.hovered {
@@ -214,30 +191,39 @@ nr-sentence.playing {
   background: #f1f6ff;
 }
 
-.theme-btn {
+/* Unified bar button style */
+.bar-btn {
   width: 34px;
   height: 34px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  border: none;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   cursor: pointer;
   font-size: 16px;
+  transition: all 0.15s ease;
+  color: var(--foreground);
 }
 
-.audio-zoom-btn {
-  background: transparent;
-  border: none;
-  padding: 6px 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 15px;
-}
-
-.audio-zoom-btn:hover {
+.bar-btn:hover {
   background: rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .bar-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bar-btn:active {
+  transform: translateY(0);
+  transition: all 0.08s ease;
+}
+
+.bar-btn:focus-visible {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: 2px;
 }
 
 .audio-controls {
@@ -357,6 +343,26 @@ nr-sentence.playing {
   overflow: auto;
 }
 
+.voice-item {
+  cursor: pointer;
+}
+
+.voice-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .voice-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.voice-item.selected {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .voice-item.selected {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .voice-item>div {
   font-size: 13px;
 }
@@ -388,9 +394,17 @@ nr-sentence.playing {
   width: 100%;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--card-border);
   margin-bottom: 8px;
   font-size: 13px;
+  background: var(--card-bg);
+  color: var(--foreground);
+}
+
+.popover-input:focus {
+  outline: 2px solid var(--primary-bg);
+  outline-offset: -1px;
+  border-color: transparent;
 }
 
 .popover-actions {
@@ -408,7 +422,15 @@ nr-sentence.playing {
 
 .popover-btn--muted {
   background: transparent;
-  border-color: rgba(0, 0, 0, 0.06);
+  border-color: var(--card-border);
+}
+
+.popover-btn--muted:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .popover-btn--muted:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .popover-btn--primary {

@@ -186,9 +186,6 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             ? textDivs
             : Array.from(textLayer.div.querySelectorAll<HTMLElement>('span[role="presentation"]'));
 
-          console.log(`Page ${pageNum}: Found ${spans.length} spans to tag.`);
-
-
           tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
 
           // Ensure pointer events and stacking for hover/click
@@ -260,8 +257,6 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       const segmentIndex = sentenceElement.getAttribute('data-na-sen-ind');
       if (!segmentIndex) return;
 
-      console.info('[PdfViewer] hover sentence', segmentIndex, 'target', target.tagName);
-
       if (segmentIndex !== hoveredSegmentIndex) {
         setHoveredSegment(segmentIndex);
       }
@@ -272,7 +267,6 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       const sentenceElement = target.closest('nr-sentence');
       if (sentenceElement) {
         const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1', 10);
-        console.info('[PdfViewer] click sentence', segmentIndex);
 
         playSegment(segmentIndex);
       }
