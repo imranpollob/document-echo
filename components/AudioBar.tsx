@@ -178,6 +178,10 @@ export default function AudioBar() {
 
         <div className="audio-right">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="bar-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
+
+            <button className="bar-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
+
             <button
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
               type="button"
@@ -186,67 +190,63 @@ export default function AudioBar() {
             >
               {theme === 'dark' ? '🌙' : '🌞'}
             </button>
-            <button className="bar-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
-            <button className="bar-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
 
-            <div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = apiBtnRef.current?.getBoundingClientRect();
-                  if (rect) {
-                    // position popover similar to avatar but anchored on the right side
-                    setApiPopPos({ right: Math.max(8, Math.round(window.innerWidth - rect.right)), top: rect.top - 8 });
-                  } else setApiPopPos(null);
-                  setApiInput(apiKey ?? '');
-                  setApiOpen(v => !v);
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = apiBtnRef.current?.getBoundingClientRect();
+                if (rect) {
+                  // position popover similar to avatar but anchored on the right side
+                  setApiPopPos({ right: Math.max(8, Math.round(window.innerWidth - rect.right)), top: rect.top - 8 });
+                } else setApiPopPos(null);
+                setApiInput(apiKey ?? '');
+                setApiOpen(v => !v);
+              }}
+
+              ref={apiBtnRef}
+              type="button"
+              className="bar-btn"
+              title="OpenAI API Key"
+            >
+              <span className="api-emoji" aria-hidden="true">🔑</span>
+            </button>
+
+            {apiOpen && (
+              <div
+                ref={apiPopRef}
+                className="api-popover"
+                style={{
+                  position: 'fixed',
+                  right: apiPopPos ? `${apiPopPos.right}px` : '8px',
+                  bottom: '80px',
+                  zIndex: 99999,
                 }}
-
-                ref={apiBtnRef}
-                type="button"
-                className="bar-btn"
-                title="OpenAI API Key"
               >
-                <span className="api-emoji" aria-hidden="true">🔑</span>
-              </button>
-
-              {apiOpen && (
-                <div
-                  ref={apiPopRef}
-                  className="api-popover"
-                  style={{
-                    position: 'fixed',
-                    right: apiPopPos ? `${apiPopPos.right}px` : '8px',
-                    bottom: '80px',
-                    zIndex: 99999,
-                  }}
-                >
-                  <div className="popover-content">
-                    <div className="popover-title">OpenAI API Key (optional)</div>
-                    <input
-                      value={apiInput}
-                      onChange={(e) => setApiInput(e.target.value)}
-                      placeholder="sk..."
-                      className="popover-input"
-                    />
-                    <div className="popover-actions">
-                      <button
-                        onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
-                        className="popover-btn popover-btn--muted"
-                      >
-                        Clear
-                      </button>
-                      <button
-                        onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
-                        className="popover-btn popover-btn--primary"
-                      >
-                        Save
-                      </button>
-                    </div>
+                <div className="popover-content">
+                  <div className="popover-title">OpenAI API Key (optional)</div>
+                  <input
+                    value={apiInput}
+                    onChange={(e) => setApiInput(e.target.value)}
+                    placeholder="sk..."
+                    className="popover-input"
+                  />
+                  <div className="popover-actions">
+                    <button
+                      onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
+                      className="popover-btn popover-btn--muted"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
+                      className="popover-btn popover-btn--primary"
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

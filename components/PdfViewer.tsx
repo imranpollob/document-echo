@@ -186,6 +186,35 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             ? textDivs
             : Array.from(textLayer.div.querySelectorAll<HTMLElement>('span[role="presentation"]'));
 
+          // FIX: Convert pdf.js percentage-based positioning to absolute pixels
+          // This ensures correct alignment during zoom, matching NaturalReader behavior
+          spans.forEach((span) => {
+            // 1. Fix Position (Left/Top)
+            // pdf.js outputs 'left: 12.34%; top: 56.78%;' -> convert to pixels based on viewport
+            if (span.style.left.endsWith('%')) {
+              const leftPerc = parseFloat(span.style.left);
+              span.style.left = `${(leftPerc / 100) * viewport.width}px`;
+            }
+            if (span.style.top.endsWith('%')) {
+              const topPerc = parseFloat(span.style.top);
+              span.style.top = `${(topPerc / 100) * viewport.height}px`;
+            }
+
+            // 2. Fix Font Size
+            // pdf.js outputs 'font-size: calc(var(--scale-factor) * 12.34px)'
+            // We need to set it to '12.34 * scale' in pixels
+            const currentFontSize = span.style.fontSize;
+            if (currentFontSize && currentFontSize.includes('calc')) {
+              // Regex to extract the base size (e.g. 8.97 from "* 8.97px")
+              const match = currentFontSize.match(/\*\s*([\d.]+)px/);
+              if (match && match[1]) {
+                const baseSize = parseFloat(match[1]);
+                const newSize = baseSize * viewport.scale;
+                span.style.fontSize = `${newSize}px`;
+              }
+            }
+          });
+
           tagSentencesInTextLayer(spans, textContent.items, pageSegments, pageNum, segmentOffset);
 
           // Ensure pointer events and stacking for hover/click
