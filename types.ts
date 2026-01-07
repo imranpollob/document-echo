@@ -41,4 +41,5 @@ export interface AudioState {
   pause: () => void;
   resume: () => void;
   next: () => void;
+  setPlaybackStatus: (status: 'idle' | 'loading' | 'playing' | 'paused') => void;
 }

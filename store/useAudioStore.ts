@@ -36,6 +36,8 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       set({ selectedVoice: voiceURI });
   },
 
+  setPlaybackStatus: (status) => set({ playbackStatus: status }),
+
   loadSegments: (segments: TextSegment[]) => set({ segments, currentSegmentIndex: 0, playbackStatus: 'idle' }),
 
   playSegment: async (index: number) => {
@@ -102,10 +104,14 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
         }
     } else {
         // Fallback to browser TTS - no blob needed, AudioEngine handles it.
-        // We just set status to playing.
+        // We stay in 'loading' state until AudioEngine picks it up and starts speaking.
     }
 
-    set({ playbackStatus: 'playing' });
+    // Only set playing if we have a blob ready (API cache hit)
+    // Otherwise, let Async fetch or AudioEngine (local TTS) switch to playing when ready
+    if (apiKey && audioCache.get(hash)) {
+        set({ playbackStatus: 'playing' });
+    }
   },
 
   next: () => {
@@ -127,11 +133,8 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   },
   
   resume: () => {
-     // If we were paused, just set to playing. 
-     // AudioEngine *should* pick this up. 
-     // Note: This might restart the sentence depending on AudioEngine implementation.
-     // For MVP this is acceptable.
-     set({ playbackStatus: 'playing' });
+     // If we were paused, set to loading to show spinner while engine restarts/resumes
+     set({ playbackStatus: 'loading' });
   },
 
   prefetchSegment: async (index: number) => {

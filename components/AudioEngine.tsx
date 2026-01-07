@@ -27,9 +27,13 @@ export const AudioEngine = () => {
   // Subscribe to store state
   const currentSegmentIndex = useAudioStore(state => state.currentSegmentIndex);
   const playbackStatus = useAudioStore(state => state.playbackStatus);
+  const setPlaybackStatus = useAudioStore(state => state.setPlaybackStatus);
   const segments = useAudioStore(state => state.segments);
   const audioCache = useAudioStore(state => state.audioCache);
   const next = useAudioStore(state => state.next);
+
+  // Ref to track if we are waiting for onstart event to avoid re-triggering logic
+  const isWaitingForOnStartRef = useRef(false);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -41,6 +45,7 @@ export const AudioEngine = () => {
         console.error("Audio playback error", e);
         // Maybe alert user?
       };
+      // Audio element also has onplay/onplaying, but we control via status
     }
   }, [next]);
 
@@ -49,9 +54,10 @@ export const AudioEngine = () => {
   const useBrowserTTSForIndex = useAudioStore(state => state.useBrowserTTSForIndex);
 
   useEffect(() => {
-    // Stop browser TTS on unmount or status change
-    if (playbackStatus !== 'playing') {
+    // Stop browser TTS on unmount or status change (if not transitioning loading->playing)
+    if (playbackStatus !== 'playing' && playbackStatus !== 'loading') {
       window.speechSynthesis.cancel();
+      isWaitingForOnStartRef.current = false;
     }
   }, [playbackStatus]);
 
@@ -59,7 +65,17 @@ export const AudioEngine = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (playbackStatus === 'playing') {
+    // We handle 'loading' (start request) and 'playing' (active/resume)
+    if (playbackStatus === 'playing' || playbackStatus === 'loading') {
+
+      // If we are currently "playing" but we set the flag that we were waiting for start,
+      // it means this effect run is due to variables changing after start.
+      // We should NOT restart playback if it's already going.
+      if (playbackStatus === 'playing' && isWaitingForOnStartRef.current) {
+        isWaitingForOnStartRef.current = false;
+        return;
+      }
+
       const segment = segments[currentSegmentIndex];
       if (!segment) return;
 
@@ -74,6 +90,7 @@ export const AudioEngine = () => {
           playCountRef.current += 1;
           (async () => {
             try {
+              if (playbackStatus === 'loading') setPlaybackStatus('playing');
               await audio.play();
             } catch (e: any) {
               if (e && e.name === 'AbortError') {
@@ -100,6 +117,7 @@ export const AudioEngine = () => {
         playCountRef.current += 1;
         (async () => {
           try {
+            if (playbackStatus === 'loading') setPlaybackStatus('playing');
             await audio.play();
           } catch (e: any) {
             if (e && e.name === 'AbortError') {
@@ -115,7 +133,14 @@ export const AudioEngine = () => {
         }
       } else if (!apiKey || useBrowserTTSForIndex === currentSegmentIndex) {
         // Browser TTS Fallback
-        // Stop any previous
+
+        // If we are in 'loading' state, we start the speech.
+        // If we are in 'playing' state (e.g. Resume), we also start/resume.
+
+        // Important: Stop any previous utterance before starting new one, 
+        // unless we are just resuming? 
+        // window.speechSynthesis.cancel() kills everything.
+        // For simplicity in this engine, we restart the sentence segment on resume/play.
         window.speechSynthesis.cancel();
 
         // Browser TTS invoked for segment
@@ -129,6 +154,14 @@ export const AudioEngine = () => {
           next();
         };
 
+        utterance.onstart = () => {
+          if (playbackStatus === 'loading') {
+            // Signal that we strictly transitioned from loading->playing
+            isWaitingForOnStartRef.current = true;
+            setPlaybackStatus('playing');
+          }
+        };
+
         window.speechSynthesis.speak(utterance);
 
         // Audio element is not used
@@ -138,7 +171,7 @@ export const AudioEngine = () => {
       try { audio.pause(); } catch { }
       window.speechSynthesis.cancel();
     }
-  }, [currentSegmentIndex, playbackStatus, segments, audioCache, apiKey, selectedVoice, next]);
+  }, [currentSegmentIndex, playbackStatus, segments, audioCache, apiKey, selectedVoice, next, setPlaybackStatus]);
 
   // Cleanup object URL on unmount
   useEffect(() => {
