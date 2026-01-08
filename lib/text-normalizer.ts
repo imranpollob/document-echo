@@ -111,7 +111,7 @@ export function normalizeText(textItems: any[], pageIndex: number): TextSegment[
 
   for (let i = 0; i < fullTextChars.length; i++) {
     const ch = fullTextChars[i];
-    let isSentenceEnd = /[.!?]/.test(ch);
+    let isSentenceEnd = /[.!:?]/.test(ch);
 
     // If this is a period and it sits between two digits (e.g. 0.2,
     // 123.456) treat it as part of a numeric literal rather than a
