@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useAudioStore } from '../store/useAudioStore';
+import { useAudioStore } from '../store/use-audio-store';
 
 // Simple string hash for caching (duplicated merely because of isolation, better to export from utils)
 // But wait, the store manages the blob retrieval, putting it in context?

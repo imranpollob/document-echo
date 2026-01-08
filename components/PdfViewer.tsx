@@ -6,8 +6,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 // @ts-ignore
 import { TextLayerBuilder } from 'pdfjs-dist/web/pdf_viewer.mjs';
 import 'pdfjs-dist/web/pdf_viewer.css';
-import { TextNormalizer } from '../utils/TextNormalizer';
-import { useAudioStore } from '../store/useAudioStore';
+import { normalizeText } from '../lib/text-normalizer';
+import { useAudioStore } from '../store/use-audio-store';
 import type { TextSegment } from '../types';
 
 // Set worker src
@@ -166,7 +166,7 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
 
         // Create text layer
         const textContent = await page.getTextContent();
-        const pageSegments = TextNormalizer.normalize(textContent.items, pageNum);
+        const pageSegments = normalizeText(textContent.items, pageNum);
 
         const textLayerDiv = document.createElement('div');
         textLayerDiv.className = 'textLayer pdf-textLayer';

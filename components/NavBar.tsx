@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useAudioStore } from '../store/useAudioStore';
+import { useAudioStore } from '../store/use-audio-store';
 
-export default function AudioBar() {
+export default function NavBar() {
   const playbackStatus = useAudioStore(s => s.playbackStatus);
   const play = useAudioStore(s => s.play);
   const pause = useAudioStore(s => s.pause);

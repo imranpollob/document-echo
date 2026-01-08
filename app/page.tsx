@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { AudioEngine } from '../components/AudioEngine';
-import { useAudioStore } from '../store/useAudioStore';
+import { useAudioStore } from '../store/use-audio-store';
 
 const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mod.PdfViewer), {
   ssr: false,
