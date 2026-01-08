@@ -186,32 +186,40 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
             ? textDivs
             : Array.from(textLayer.div.querySelectorAll<HTMLElement>('span[role="presentation"]'));
 
-          // FIX: Convert pdf.js percentage-based positioning to absolute pixels
+          // FIX: Convert pdf.js positioning to absolute pixels
           // This ensures correct alignment during zoom, matching NaturalReader behavior
+          // Handles both percentage-based (legacy) and calc-based (modern) pdf.js output
           spans.forEach((span) => {
-            // 1. Fix Position (Left/Top)
-            // pdf.js outputs 'left: 12.34%; top: 56.78%;' -> convert to pixels based on viewport
-            if (span.style.left.endsWith('%')) {
+            // Helper to parse 'calc(var(--scale) * 12.34px)' -> 12.34
+            const getBaseValue = (style: string): number | null => {
+              if (!style) return null;
+              const match = style.match(/\*\s*([\d.]+)px/);
+              return match ? parseFloat(match[1]) : null;
+            };
+
+            // 1. Fix Position (Left)
+            if (span.style.left.includes('calc')) {
+              const base = getBaseValue(span.style.left);
+              if (base !== null) span.style.left = `${base * viewport.scale}px`;
+            } else if (span.style.left.endsWith('%')) {
               const leftPerc = parseFloat(span.style.left);
               span.style.left = `${(leftPerc / 100) * viewport.width}px`;
             }
-            if (span.style.top.endsWith('%')) {
+
+            // 2. Fix Position (Top)
+            if (span.style.top.includes('calc')) {
+              const base = getBaseValue(span.style.top);
+              if (base !== null) span.style.top = `${base * viewport.scale}px`;
+            } else if (span.style.top.endsWith('%')) {
               const topPerc = parseFloat(span.style.top);
               span.style.top = `${(topPerc / 100) * viewport.height}px`;
             }
 
-            // 2. Fix Font Size
-            // pdf.js outputs 'font-size: calc(var(--scale-factor) * 12.34px)'
-            // We need to set it to '12.34 * scale' in pixels
+            // 3. Fix Font Size
             const currentFontSize = span.style.fontSize;
             if (currentFontSize && currentFontSize.includes('calc')) {
-              // Regex to extract the base size (e.g. 8.97 from "* 8.97px")
-              const match = currentFontSize.match(/\*\s*([\d.]+)px/);
-              if (match && match[1]) {
-                const baseSize = parseFloat(match[1]);
-                const newSize = baseSize * viewport.scale;
-                span.style.fontSize = `${newSize}px`;
-              }
+              const base = getBaseValue(currentFontSize);
+              if (base !== null) span.style.fontSize = `${base * viewport.scale}px`;
             }
           });
 
