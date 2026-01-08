@@ -22,6 +22,8 @@ export interface AudioState {
   playbackStatus: 'idle' | 'loading' | 'playing' | 'paused';
   apiKey: string | null;
   selectedVoice: string | null; // For browser TTS
+  file: File | null;
+  setFile: (file: File | null) => void;
   
   // PDF zoom state
   scale: number;

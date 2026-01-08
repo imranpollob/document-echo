@@ -14,6 +14,8 @@ export default function AudioBar() {
   const selectedVoice = useAudioStore(s => s.selectedVoice);
   const setSelectedVoice = useAudioStore(s => s.setSelectedVoice);
 
+  const setFile = useAudioStore(s => s.setFile);
+
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [open, setOpen] = useState(false);
   const popRef = useRef<HTMLDivElement | null>(null);
@@ -26,6 +28,7 @@ export default function AudioBar() {
   const [apiOpen, setApiOpen] = useState(false);
   const apiPopRef = useRef<HTMLDivElement | null>(null);
   const apiBtnRef = useRef<HTMLButtonElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [apiPopPos, setApiPopPos] = useState<{ right: number; top: number } | null>(null);
   const [apiInput, setApiInput] = useState<string>(apiKey ?? '');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -192,6 +195,27 @@ export default function AudioBar() {
 
         <div className="audio-right">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              type="file"
+              accept="application/pdf"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setFile(e.target.files[0]);
+                }
+                // Reset value so same file can be selected again
+                e.target.value = '';
+              }}
+            />
+            <button
+              className="bar-btn"
+              title="Open PDF"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <span aria-hidden="true">📎</span>
+            </button>
+
             <button className="bar-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
 
             <button className="bar-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>

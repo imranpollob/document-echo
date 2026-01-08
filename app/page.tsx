@@ -12,7 +12,8 @@ const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mo
 // Voice selection is handled in the persistent AudioBar component.
 
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
+  const file = useAudioStore(state => state.file);
+  const setFile = useAudioStore(state => state.setFile);
   const [pdfMaxWidth, setPdfMaxWidth] = useState<number>(1024);
   const setApiKey = useAudioStore(state => state.setApiKey);
   const apiKey = useAudioStore(state => state.apiKey);

@@ -27,8 +27,10 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
     selectedVoice: typeof window !== 'undefined' ? (localStorage.getItem('selectedVoice') ?? null) : null,
   audioCache: new Map(),
     useBrowserTTSForIndex: null,
+    file: null,
 
   setApiKey: (key: string) => set({ apiKey: key }),
+  setFile: (file: File | null) => set({ file }),
   setSelectedVoice: (voiceURI: string) => {
       if (typeof window !== 'undefined') {
           try { localStorage.setItem('selectedVoice', voiceURI); } catch {}
