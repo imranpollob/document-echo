@@ -1,4 +1,6 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+kokoro-v1.0.onnx
+voices-v1.0.bin
 
 # dependencies
 /node_modules

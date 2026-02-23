@@ -13,26 +13,29 @@ export default function NavBar() {
   const currentSegmentIndex = useAudioStore(s => s.currentSegmentIndex);
   const selectedVoice = useAudioStore(s => s.selectedVoice);
   const setSelectedVoice = useAudioStore(s => s.setSelectedVoice);
-
   const setFile = useAudioStore(s => s.setFile);
 
+  // TTS engine state
+  const ttsEngine = useAudioStore(s => s.ttsEngine);
+  const setTtsEngine = useAudioStore(s => s.setTtsEngine);
+  const kokoroVoice = useAudioStore(s => s.kokoroVoice);
+  const setKokoroVoice = useAudioStore(s => s.setKokoroVoice);
+  const kokoroServerUrl = useAudioStore(s => s.kokoroServerUrl);
+
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [kokoroVoices, setKokoroVoices] = useState<string[]>([]);
+  const [kokoroLoading, setKokoroLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  // 'browser' | 'kokoro' — which tab is active inside the popover
+  const [voiceTab, setVoiceTab] = useState<'browser' | 'kokoro'>(ttsEngine);
   const popRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
   const [popPos, setPopPos] = useState<{ x: number } | null>(null);
-  // API key popover
-  const apiKey = useAudioStore(s => s.apiKey);
-  const setApiKey = useAudioStore(s => s.setApiKey);
-  const [apiOpen, setApiOpen] = useState(false);
-  const apiPopRef = useRef<HTMLDivElement | null>(null);
-  const apiBtnRef = useRef<HTMLButtonElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [apiPopPos, setApiPopPos] = useState<{ right: number; top: number } | null>(null);
-  const [apiInput, setApiInput] = useState<string>(apiKey ?? '');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
+  // Load browser voices
   useEffect(() => {
     const load = () => {
       if (typeof window === 'undefined') return;
@@ -48,6 +51,17 @@ export default function NavBar() {
     return () => { window.speechSynthesis.onvoiceschanged = null; };
   }, [selectedVoice, setSelectedVoice]);
 
+  // Fetch kokoro voices whenever the popover opens
+  useEffect(() => {
+    if (!open) return;
+    setKokoroLoading(true);
+    fetch(`${kokoroServerUrl}/voices`)
+      .then(r => r.json())
+      .then(data => setKokoroVoices(data.voices ?? []))
+      .catch(() => setKokoroVoices([]))
+      .finally(() => setKokoroLoading(false));
+  }, [open, kokoroServerUrl]);
+
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
       if (!open) return;
@@ -58,17 +72,6 @@ export default function NavBar() {
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
   }, [open]);
-
-  useEffect(() => {
-    const onDocClick = (e: MouseEvent) => {
-      if (!apiOpen) return;
-      if (apiPopRef.current && !apiPopRef.current.contains(e.target as Node)) {
-        setApiOpen(false);
-      }
-    };
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, [apiOpen]);
 
   useEffect(() => {
     setMounted(true);
@@ -91,6 +94,16 @@ export default function NavBar() {
     }
   };
 
+  // Voice label display
+  const voiceLabel = mounted ? (() => {
+    if (ttsEngine === 'kokoro') {
+      return kokoroVoice ? `🤖 ${kokoroVoice}` : '🤖 Kokoro';
+    }
+    const found = voices.find(v => v.voiceURI === selectedVoice);
+    if (found) return `🔊 ${found.name}`;
+    return selectedVoice ? `🔊 ${selectedVoice}` : '';
+  })() : '';
+
   return (
     <div className="audio-bar">
       <div className="audio-bar-inner">
@@ -99,30 +112,21 @@ export default function NavBar() {
             ref={avatarRef}
             type="button"
             title="Select voice"
-            onClick={(e) => {
-              e.stopPropagation();
-              // compute popover position relative to viewport
-              const rect = avatarRef.current?.getBoundingClientRect();
-              if (rect) {
-                // center popover above the avatar using its mid-point
-                setPopPos({ x: Math.round(rect.left + rect.width / 2) });
-              } else {
-                setPopPos(null);
-              }
-              setOpen(v => !v);
-            }}
             className="bar-btn"
             aria-expanded={open}
+            onClick={(e) => {
+              e.stopPropagation();
+              const rect = avatarRef.current?.getBoundingClientRect();
+              setPopPos(rect ? { x: Math.round(rect.left + rect.width / 2) } : null);
+              setVoiceTab(ttsEngine); // open on the currently active engine's tab
+              setOpen(v => !v);
+            }}
           >
             <span className="avatar-emoji" aria-hidden="true">💬</span>
           </button>
 
           <div className="voice-label" aria-hidden={!mounted}>
-            {mounted ? (() => {
-              const found = voices.find(v => v.voiceURI === selectedVoice);
-              if (found) return `${found.name} (${found.lang})`;
-              return selectedVoice ? selectedVoice : '';
-            })() : ''}
+            {voiceLabel}
           </div>
 
           {open && (
@@ -136,16 +140,67 @@ export default function NavBar() {
                 zIndex: 99999,
               }}
             >
-              <div className="popover-content">
-                {voices.length === 0 ? (
-                  <div className="px-2 py-1 text-sm text-gray-600">No voices</div>
+              <div className="popover-content voice-popover-content">
+                {/* Tabs */}
+                <div className="voice-tabs">
+                  <button
+                    className={`voice-tab ${voiceTab === 'browser' ? 'active' : ''}`}
+                    onClick={() => setVoiceTab('browser')}
+                  >
+                    🔊 Browser
+                  </button>
+                  <button
+                    className={`voice-tab ${voiceTab === 'kokoro' ? 'active' : ''}`}
+                    onClick={() => setVoiceTab('kokoro')}
+                  >
+                    🤖 Kokoro
+                  </button>
+                </div>
+
+                {voiceTab === 'browser' ? (
+                  <div className="voice-list">
+                    {voices.length === 0 ? (
+                      <div className="voice-empty">No browser voices available</div>
+                    ) : (
+                      voices.map(v => (
+                        <div
+                          key={v.voiceURI}
+                          className={`voice-item p-2 rounded ${ttsEngine === 'browser' && selectedVoice === v.voiceURI ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedVoice(v.voiceURI);
+                            setTtsEngine('browser');
+                            setOpen(false);
+                          }}
+                        >
+                          <div>{v.name} <span>({v.lang})</span></div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 ) : (
                   <div className="voice-list">
-                    {voices.map(v => (
-                      <div key={v.voiceURI} className={`voice-item p-2 rounded ${selectedVoice === v.voiceURI ? 'selected' : ''}`} onClick={() => { setSelectedVoice(v.voiceURI); setOpen(false); }}>
-                        <div>{v.name} <span>({v.lang})</span></div>
+                    {kokoroLoading ? (
+                      <div className="voice-empty">Loading…</div>
+                    ) : kokoroVoices.length === 0 ? (
+                      <div className="voice-empty">
+                        No voices — is the Kokoro server running?<br />
+                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>Start: <code>uv run python main.py</code></span>
                       </div>
-                    ))}
+                    ) : (
+                      kokoroVoices.map(v => (
+                        <div
+                          key={v}
+                          className={`voice-item p-2 rounded ${ttsEngine === 'kokoro' && kokoroVoice === v ? 'selected' : ''}`}
+                          onClick={() => {
+                            setKokoroVoice(v);
+                            setTtsEngine('kokoro');
+                            setOpen(false);
+                          }}
+                        >
+                          <div>{v}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
@@ -204,7 +259,6 @@ export default function NavBar() {
                 if (e.target.files && e.target.files[0]) {
                   setFile(e.target.files[0]);
                 }
-                // Reset value so same file can be selected again
                 e.target.value = '';
               }}
             />
@@ -216,9 +270,9 @@ export default function NavBar() {
               <span aria-hidden="true">📎</span>
             </button>
 
-            <button className="bar-btn" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
+            <button className="bar-btn zoom-btn-bar" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
 
-            <button className="bar-btn" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
+            <button className="bar-btn zoom-btn-bar" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
 
             <button
               aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
@@ -228,63 +282,6 @@ export default function NavBar() {
             >
               {theme === 'dark' ? '🌙' : '🌞'}
             </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const rect = apiBtnRef.current?.getBoundingClientRect();
-                if (rect) {
-                  // position popover similar to avatar but anchored on the right side
-                  setApiPopPos({ right: Math.max(8, Math.round(window.innerWidth - rect.right)), top: rect.top - 8 });
-                } else setApiPopPos(null);
-                setApiInput(apiKey ?? '');
-                setApiOpen(v => !v);
-              }}
-
-              ref={apiBtnRef}
-              type="button"
-              className="bar-btn"
-              title="OpenAI API Key"
-            >
-              <span className="api-emoji" aria-hidden="true">🔑</span>
-            </button>
-
-            {apiOpen && (
-              <div
-                ref={apiPopRef}
-                className="api-popover"
-                style={{
-                  position: 'fixed',
-                  right: apiPopPos ? `${apiPopPos.right}px` : '8px',
-                  bottom: '80px',
-                  zIndex: 99999,
-                }}
-              >
-                <div className="popover-content">
-                  <div className="popover-title">OpenAI API Key (optional)</div>
-                  <input
-                    value={apiInput}
-                    onChange={(e) => setApiInput(e.target.value)}
-                    placeholder="sk..."
-                    className="popover-input"
-                  />
-                  <div className="popover-actions">
-                    <button
-                      onClick={() => { setApiKey(''); setApiInput(''); setApiOpen(false); }}
-                      className="popover-btn popover-btn--muted"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      onClick={() => { setApiKey(apiInput); setApiOpen(false); }}
-                      className="popover-btn popover-btn--primary"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

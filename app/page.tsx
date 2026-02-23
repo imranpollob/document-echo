@@ -3,32 +3,43 @@
 import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { AudioEngine } from '../components/AudioEngine';
+import { TextViewer } from '../components/TextViewer';
 import { useAudioStore } from '../store/use-audio-store';
+import { normalizeRawText } from '../lib/text-normalizer';
 
 const PdfViewer = dynamic(() => import('../components/PdfViewer').then(mod => mod.PdfViewer), {
   ssr: false,
 });
 
-// Voice selection is handled in the persistent AudioBar component.
-
 export default function Home() {
   const file = useAudioStore(state => state.file);
   const setFile = useAudioStore(state => state.setFile);
+  const loadSegments = useAudioStore(state => state.loadSegments);
   const [pdfMaxWidth, setPdfMaxWidth] = useState<number>(1024);
-  const setApiKey = useAudioStore(state => state.setApiKey);
-  const apiKey = useAudioStore(state => state.apiKey);
-  const play = useAudioStore(state => state.play);
-  const pause = useAudioStore(state => state.pause);
-  const resume = useAudioStore(state => state.resume);
-  const playbackStatus = useAudioStore(state => state.playbackStatus);
-  const useBrowserTTSForIndex = useAudioStore(state => state.useBrowserTTSForIndex);
 
-  // Removed auto-load of default PDF; user must choose a file.
+  const [inputMode, setInputMode] = useState<'pdf' | 'text'>('pdf');
+  const [textInput, setTextInput] = useState('');
+  const [textLoaded, setTextLoaded] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setInputMode('pdf');
+      setTextLoaded(false);
     }
+  };
+
+  const handleTextLoad = () => {
+    if (!textInput.trim()) return;
+    const segments = normalizeRawText(textInput);
+    loadSegments(segments);
+    setTextLoaded(true);
+    setFile(null); // clear any PDF
+  };
+
+  const handleTextEdit = () => {
+    setTextLoaded(false);
+    loadSegments([]);
   };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -72,6 +83,8 @@ export default function Home() {
     setDragActive(false);
     if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
+      setInputMode('pdf');
+      setTextLoaded(false);
     }
   };
 
@@ -85,61 +98,92 @@ export default function Home() {
     setDragActive(false);
   };
 
-  const handlePlayPause = () => {
-    if (playbackStatus === 'playing') {
-      pause();
-    } else if (playbackStatus === 'paused') {
-      resume();
-    } else {
-      play();
-    }
-  };
+  const showEmptyState = inputMode === 'pdf' ? !file : !textLoaded;
 
   return (
     <main className="flex flex-col items-center">
-      {apiKey && useBrowserTTSForIndex !== null && (
-        <div className="mt-2 w-full max-w-2xl text-sm text-yellow-800 bg-yellow-100 border border-yellow-200 p-2 rounded">
-          API request failed for the selected voice; continuing with local (browser) TTS for this segment.
-        </div>
-      )}
+      <div className={`the-pdf-viewer w-full ${showEmptyState ? 'centered' : ''}`} style={{ maxWidth: `${pdfMaxWidth}px` }}>
+        {showEmptyState ? (
+          <div className="input-container">
+            {/* Mode tabs */}
+            <div className="mode-tabs">
+              <button
+                className={`mode-tab ${inputMode === 'pdf' ? 'active' : ''}`}
+                onClick={() => setInputMode('pdf')}
+              >
+                📄 PDF
+              </button>
+              <button
+                className={`mode-tab ${inputMode === 'text' ? 'active' : ''}`}
+                onClick={() => setInputMode('text')}
+              >
+                ✏️ Text
+              </button>
+            </div>
 
-      <div className={`the-pdf-viewer w-full ${!file ? 'centered' : ''}`} style={{ maxWidth: `${pdfMaxWidth}px` }}>
-        {!file ? (
-          <div
-            className={`drop-area ${dragActive ? 'drag-active' : ''}`}
-            onClick={handleDropAreaClick}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragOver}
-            onDragLeave={handleDragLeave}
-            role="button"
-            tabIndex={0}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-            />
-
-            <div className="text-lg font-semibold">Choose file or drag and drop a PDF here</div>
-            <div className="text-sm drop-muted">Click to browse or drop a PDF file</div>
-            <button
-              className="drop-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDropAreaClick();
-              }}
-            >
-              Choose File
-            </button>
+            {inputMode === 'pdf' ? (
+              <div
+                className={`drop-area ${dragActive ? 'drag-active' : ''}`}
+                onClick={handleDropAreaClick}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                role="button"
+                tabIndex={0}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+                <div className="text-lg font-semibold">Choose file or drag and drop a PDF here</div>
+                <div className="text-sm drop-muted">Click to browse or drop a PDF file</div>
+                <button
+                  className="drop-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDropAreaClick();
+                  }}
+                >
+                  Choose File
+                </button>
+              </div>
+            ) : (
+              <div className="text-input-area">
+                <textarea
+                  className="text-input-textarea"
+                  placeholder="Paste or type your text here…"
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  rows={12}
+                />
+                <button
+                  className="drop-btn text-load-btn"
+                  onClick={handleTextLoad}
+                  disabled={!textInput.trim()}
+                >
+                  Process Text
+                </button>
+              </div>
+            )}
           </div>
-        ) : (
+        ) : inputMode === 'pdf' && file ? (
           <>
             <PdfViewer file={file} />
             <div className="resizer" role="separator" aria-orientation="vertical" />
           </>
+        ) : (
+          <div className="text-viewer-wrapper">
+            <div className="text-viewer-toolbar">
+              <button className="drop-btn" onClick={handleTextEdit}>
+                ✏️ Edit Text
+              </button>
+            </div>
+            <TextViewer />
+          </div>
         )}
       </div>
 

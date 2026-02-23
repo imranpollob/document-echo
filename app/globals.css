@@ -434,6 +434,52 @@ nr-sentence.playing {
   border-color: rgba(43, 108, 228, 0.2);
 }
 
+/* Voice popover — tabbed layout */
+.voice-popover-content {
+  min-width: 260px;
+}
+
+.voice-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+}
+
+.voice-tab {
+  flex: 1;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: all 0.12s ease;
+}
+
+.voice-tab.active {
+  background: var(--primary-bg);
+  color: var(--primary-contrast);
+}
+
+.voice-tab:not(.active):hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .voice-tab:not(.active):hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.voice-empty {
+  padding: 8px 4px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 /* Zoom toolbar for PDF viewer */
 .zoom-toolbar {
   position: absolute;
@@ -478,4 +524,224 @@ nr-sentence.playing {
   width: 12px;
   cursor: ew-resize;
   z-index: 500;
+}
+
+/* ────────────────────────────────────────────────────────
+   Input mode tabs
+   ──────────────────────────────────────────────────────── */
+.input-container {
+  width: 100%;
+  max-width: 640px;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+
+.mode-tab.active {
+  background: var(--primary-bg);
+  color: var(--primary-contrast);
+}
+
+.mode-tab:not(.active):hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .mode-tab:not(.active):hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ────────────────────────────────────────────────────────
+   Text input area
+   ──────────────────────────────────────────────────────── */
+.text-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.text-input-textarea {
+  width: 100%;
+  min-height: 240px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.text-input-textarea:focus {
+  outline: none;
+  border-color: var(--primary-bg);
+  box-shadow: 0 0 0 3px rgba(43, 108, 228, 0.12);
+}
+
+.text-input-textarea::placeholder {
+  color: var(--muted);
+}
+
+.text-load-btn {
+  align-self: flex-end;
+}
+
+.text-load-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ────────────────────────────────────────────────────────
+   Text viewer (sentence display)
+   ──────────────────────────────────────────────────────── */
+.text-viewer-wrapper {
+  padding: 16px 0;
+}
+
+.text-viewer-toolbar {
+  margin-bottom: 12px;
+}
+
+.text-viewer {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 24px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--foreground);
+}
+
+.text-segment {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 2px;
+  transition: background-color 0.15s ease;
+}
+
+.text-segment:hover {
+  background-color: rgba(219, 248, 4, 0.25);
+}
+
+.text-segment.playing {
+  background-color: rgba(144, 238, 144, 0.3);
+}
+
+/* ────────────────────────────────────────────────────────
+   Mobile responsive
+   ──────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  body {
+    padding-bottom: 72px;
+  }
+
+  .audio-bar {
+    height: 64px;
+  }
+
+  .audio-bar-inner {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .voice-label {
+    display: none;
+  }
+
+  .bar-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .audio-play {
+    width: 38px;
+    height: 38px;
+  }
+
+  .audio-btn {
+    padding: 6px 8px;
+    font-size: 16px;
+  }
+
+  .audio-controls {
+    gap: 4px;
+  }
+
+  /* Hide zoom buttons on mobile */
+  .zoom-btn-bar {
+    display: none;
+  }
+
+  .the-pdf-viewer {
+    max-width: 100% !important;
+  }
+
+  .the-pdf-viewer .resizer {
+    display: none;
+  }
+
+  .drop-area {
+    padding: 1.5rem;
+  }
+
+  .input-container {
+    padding: 0 12px;
+  }
+
+  .text-input-textarea {
+    min-height: 180px;
+    font-size: 14px;
+  }
+
+  .text-viewer {
+    padding: 16px;
+    font-size: 15px;
+  }
+
+  .voice-popover .popover-content {
+    max-width: calc(100vw - 24px);
+  }
+
+  .popover-content {
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 400px) {
+  .audio-right>div {
+    gap: 2px !important;
+  }
+
+  .bar-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .audio-play {
+    width: 34px;
+    height: 34px;
+  }
 }

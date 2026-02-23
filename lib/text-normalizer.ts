@@ -135,3 +135,54 @@ export function normalizeText(textItems: any[], pageIndex: number): TextSegment[
 
   return segments;
 }
+
+/**
+ * Normalise a raw text string (pasted or typed) into sentence segments.
+ * Uses the same punctuation-based splitting as the PDF normaliser.
+ */
+export function normalizeRawText(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  const chars = [...text];
+  let segStart = 0;
+
+  const flush = (endExclusive: number) => {
+    if (endExclusive <= segStart) return;
+
+    const raw = text.slice(segStart, endExclusive);
+    const trimmed = raw.replace(/\s+/g, ' ').trim();
+    if (!trimmed) {
+      segStart = endExclusive;
+      return;
+    }
+
+    segments.push({
+      id: crypto.randomUUID(),
+      text: trimmed,
+      pageNumber: 1,
+      spanIds: [],
+    });
+
+    segStart = endExclusive;
+  };
+
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    let isSentenceEnd = /[.!?:]/.test(ch);
+
+    // Don't split on decimal numbers (e.g. 3.14)
+    if (isSentenceEnd && ch === '.') {
+      const prev = i > 0 ? chars[i - 1] : '';
+      const next = i + 1 < chars.length ? chars[i + 1] : '';
+      if (/\d/.test(prev) && /\d/.test(next)) {
+        isSentenceEnd = false;
+      }
+    }
+
+    if (isSentenceEnd) {
+      flush(i + 1);
+    }
+  }
+
+  flush(chars.length);
+  return segments;
+}

@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Document Echo - PDF Reader with Text-to-Speech",
-  description: "An intelligent PDF reader with interactive text-to-speech. Click any sentence to listen with synchronized highlighting.",
+  title: "Document Echo - PDF & Text Reader with Text-to-Speech",
+  description: "An intelligent PDF & text reader with interactive text-to-speech. Upload PDFs or paste text, click any sentence to listen with synchronized highlighting.",
 };
 
 export default function RootLayout({
