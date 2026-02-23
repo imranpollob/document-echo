@@ -28,6 +28,7 @@ export default function NavBar() {
   const [open, setOpen] = useState(false);
   // 'browser' | 'kokoro' — which tab is active inside the popover
   const [voiceTab, setVoiceTab] = useState<'browser' | 'kokoro'>(ttsEngine);
+  const [voiceSearch, setVoiceSearch] = useState('');
   const popRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
@@ -119,6 +120,7 @@ export default function NavBar() {
               const rect = avatarRef.current?.getBoundingClientRect();
               setPopPos(rect ? { x: Math.round(rect.left + rect.width / 2) } : null);
               setVoiceTab(ttsEngine); // open on the currently active engine's tab
+              setVoiceSearch('');
               setOpen(v => !v);
             }}
           >
@@ -145,63 +147,93 @@ export default function NavBar() {
                 <div className="voice-tabs">
                   <button
                     className={`voice-tab ${voiceTab === 'browser' ? 'active' : ''}`}
-                    onClick={() => setVoiceTab('browser')}
+                    onClick={() => { setVoiceTab('browser'); setVoiceSearch(''); }}
                   >
                     🔊 Browser
                   </button>
                   <button
                     className={`voice-tab ${voiceTab === 'kokoro' ? 'active' : ''}`}
-                    onClick={() => setVoiceTab('kokoro')}
+                    onClick={() => { setVoiceTab('kokoro'); setVoiceSearch(''); }}
                   >
                     🤖 Kokoro
                   </button>
                 </div>
 
                 {voiceTab === 'browser' ? (
-                  <div className="voice-list">
-                    {voices.length === 0 ? (
-                      <div className="voice-empty">No browser voices available</div>
-                    ) : (
-                      voices.map(v => (
-                        <div
-                          key={v.voiceURI}
-                          className={`voice-item p-2 rounded ${ttsEngine === 'browser' && selectedVoice === v.voiceURI ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedVoice(v.voiceURI);
-                            setTtsEngine('browser');
-                            setOpen(false);
-                          }}
-                        >
-                          <div>{v.name} <span>({v.lang})</span></div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  <>
+                    <input
+                      className="voice-search"
+                      type="text"
+                      placeholder="Search voices…"
+                      value={voiceSearch}
+                      onChange={e => setVoiceSearch(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="voice-list">
+                      {(() => {
+                        const filtered = voices.filter(v =>
+                          v.name.toLowerCase().includes(voiceSearch.toLowerCase()) ||
+                          v.lang.toLowerCase().includes(voiceSearch.toLowerCase())
+                        );
+                        if (voices.length === 0) return <div className="voice-empty">No browser voices available</div>;
+                        if (filtered.length === 0) return <div className="voice-empty">No matches for &ldquo;{voiceSearch}&rdquo;</div>;
+                        return filtered.map(v => (
+                          <div
+                            key={v.voiceURI}
+                            className={`voice-item ${ttsEngine === 'browser' && selectedVoice === v.voiceURI ? 'selected' : ''}`}
+                            onClick={() => {
+                              setSelectedVoice(v.voiceURI);
+                              setTtsEngine('browser');
+                              setOpen(false);
+                            }}
+                          >
+                            <div>{v.name} <span>({v.lang})</span></div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </>
                 ) : (
-                  <div className="voice-list">
-                    {kokoroLoading ? (
-                      <div className="voice-empty">Loading…</div>
-                    ) : kokoroVoices.length === 0 ? (
-                      <div className="voice-empty">
-                        No voices — is the Kokoro server running?<br />
-                        <span style={{ fontSize: 11, color: 'var(--muted)' }}>Start: <code>uv run python main.py</code></span>
-                      </div>
-                    ) : (
-                      kokoroVoices.map(v => (
-                        <div
-                          key={v}
-                          className={`voice-item p-2 rounded ${ttsEngine === 'kokoro' && kokoroVoice === v ? 'selected' : ''}`}
-                          onClick={() => {
-                            setKokoroVoice(v);
-                            setTtsEngine('kokoro');
-                            setOpen(false);
-                          }}
-                        >
-                          <div>{v}</div>
-                        </div>
-                      ))
+                  <>
+                    {!kokoroLoading && kokoroVoices.length > 0 && (
+                      <input
+                        className="voice-search"
+                        type="text"
+                        placeholder="Search voices…"
+                        value={voiceSearch}
+                        onChange={e => setVoiceSearch(e.target.value)}
+                        autoFocus
+                      />
                     )}
-                  </div>
+                    <div className="voice-list">
+                      {kokoroLoading ? (
+                        <div className="voice-empty">Loading…</div>
+                      ) : kokoroVoices.length === 0 ? (
+                        <div className="voice-empty">
+                          No voices — is the Kokoro server running?<br />
+                          <span style={{ fontSize: 11, color: 'var(--muted)' }}>Start: <code>uv run python main.py</code></span>
+                        </div>
+                      ) : (() => {
+                        const filtered = kokoroVoices.filter(v =>
+                          v.toLowerCase().includes(voiceSearch.toLowerCase())
+                        );
+                        if (filtered.length === 0) return <div className="voice-empty">No matches for &ldquo;{voiceSearch}&rdquo;</div>;
+                        return filtered.map(v => (
+                          <div
+                            key={v}
+                            className={`voice-item ${ttsEngine === 'kokoro' && kokoroVoice === v ? 'selected' : ''}`}
+                            onClick={() => {
+                              setKokoroVoice(v);
+                              setTtsEngine('kokoro');
+                              setOpen(false);
+                            }}
+                          >
+                            <div>{v}</div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

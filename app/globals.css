@@ -332,18 +332,44 @@ nr-sentence.playing {
 }
 
 .voice-popover .voice-list {
-  min-width: 240px;
-  max-width: 420px;
-  max-height: 220px;
-  overflow: auto;
+  width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.voice-search {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-size: 13px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.voice-search:focus {
+  border-color: var(--primary-bg);
+  box-shadow: 0 0 0 3px rgba(43, 108, 228, 0.18);
 }
 
 .voice-item {
   cursor: pointer;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  transition: background 0.1s ease;
 }
 
 .voice-item:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="dark"] .voice-item:hover {
@@ -436,7 +462,9 @@ nr-sentence.playing {
 
 /* Voice popover — tabbed layout */
 .voice-popover-content {
-  min-width: 260px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
 }
 
 .voice-tabs {
