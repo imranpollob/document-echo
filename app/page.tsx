@@ -15,6 +15,7 @@ export default function Home() {
   const file = useAudioStore(state => state.file);
   const setFile = useAudioStore(state => state.setFile);
   const loadSegments = useAudioStore(state => state.loadSegments);
+  const segments = useAudioStore(state => state.segments);
   const [pdfMaxWidth, setPdfMaxWidth] = useState<number>(1024);
 
   const TEXT_CACHE_KEY = 'document-echo-text-input';
@@ -53,6 +54,14 @@ export default function Home() {
     setTextInput('');
     localStorage.removeItem(TEXT_CACHE_KEY);
   };
+
+  // Reset to home when NavBar home button clears both file and segments
+  useEffect(() => {
+    if (!file && segments.length === 0) {
+      setTextLoaded(false);
+      setInputMode('pdf');
+    }
+  }, [file, segments]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [dragActive, setDragActive] = useState(false);

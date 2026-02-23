@@ -11,9 +11,13 @@ export default function NavBar() {
   const next = useAudioStore(s => s.next);
   const prev = useAudioStore(s => s.playSegment);
   const currentSegmentIndex = useAudioStore(s => s.currentSegmentIndex);
+  const segments = useAudioStore(s => s.segments);
+  const loadSegments = useAudioStore(s => s.loadSegments);
   const selectedVoice = useAudioStore(s => s.selectedVoice);
   const setSelectedVoice = useAudioStore(s => s.setSelectedVoice);
   const setFile = useAudioStore(s => s.setFile);
+
+  const hasContent = segments.length > 0;
 
   // TTS engine state
   const ttsEngine = useAudioStore(s => s.ttsEngine);
@@ -33,7 +37,6 @@ export default function NavBar() {
   const [mounted, setMounted] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
   const [popPos, setPopPos] = useState<{ x: number } | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // Load browser voices
@@ -109,6 +112,18 @@ export default function NavBar() {
     <div className="audio-bar">
       <div className="audio-bar-inner">
         <div className="audio-left">
+          <button
+            type="button"
+            title="Home"
+            className="bar-btn"
+            onClick={() => {
+              setFile(null);
+              loadSegments([]);
+            }}
+          >
+            <span aria-hidden="true">🏠</span>
+          </button>
+
           <button
             ref={avatarRef}
             type="button"
@@ -244,6 +259,7 @@ export default function NavBar() {
           <button
             className="audio-btn"
             title="Previous"
+            disabled={!hasContent}
             onClick={() => prev(Math.max(0, currentSegmentIndex - 1))}
           >
             &#8634;
@@ -252,7 +268,7 @@ export default function NavBar() {
           <button
             className="audio-play"
             title={playbackStatus === 'playing' ? 'Pause' : 'Play'}
-            disabled={playbackStatus === 'loading'}
+            disabled={!hasContent || playbackStatus === 'loading'}
             onClick={() => {
               if (playbackStatus === 'playing') pause();
               else if (playbackStatus === 'paused') resume();
@@ -275,33 +291,18 @@ export default function NavBar() {
             )}
           </button>
 
-          <button className="audio-btn" title="Next" onClick={() => next()}>
+          <button
+            className="audio-btn"
+            title="Next"
+            disabled={!hasContent}
+            onClick={() => next()}
+          >
             &#8635;
           </button>
         </div>
 
         <div className="audio-right">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="file"
-              accept="application/pdf"
-              style={{ display: 'none' }}
-              ref={fileInputRef}
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  setFile(e.target.files[0]);
-                }
-                e.target.value = '';
-              }}
-            />
-            <button
-              className="bar-btn"
-              title="Open PDF"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <span aria-hidden="true">📎</span>
-            </button>
-
             <button className="bar-btn zoom-btn-bar" title="Zoom out" onClick={() => { const z = useAudioStore.getState().zoomOut; z(); }}>➖</button>
 
             <button className="bar-btn zoom-btn-bar" title="Zoom in" onClick={() => { const z = useAudioStore.getState().zoomIn; z(); }}>➕</button>
