@@ -603,13 +603,28 @@ nr-sentence.playing {
   color: var(--muted);
 }
 
-.text-load-btn {
-  align-self: flex-end;
+.text-input-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 }
 
-.text-load-btn:disabled {
+.text-load-btn:disabled,
+.text-clear-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.text-clear-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+}
+
+.text-clear-btn:hover:not(:disabled) {
+  background: rgba(255, 80, 80, 0.1);
+  color: #e05555;
+  border-color: #e05555;
 }
 
 /* ────────────────────────────────────────────────────────

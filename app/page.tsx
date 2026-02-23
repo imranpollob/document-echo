@@ -17,8 +17,15 @@ export default function Home() {
   const loadSegments = useAudioStore(state => state.loadSegments);
   const [pdfMaxWidth, setPdfMaxWidth] = useState<number>(1024);
 
+  const TEXT_CACHE_KEY = 'document-echo-text-input';
+
   const [inputMode, setInputMode] = useState<'pdf' | 'text'>('pdf');
-  const [textInput, setTextInput] = useState('');
+  const [textInput, setTextInput] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(TEXT_CACHE_KEY) ?? '';
+    }
+    return '';
+  });
   const [textLoaded, setTextLoaded] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,6 +47,11 @@ export default function Home() {
   const handleTextEdit = () => {
     setTextLoaded(false);
     loadSegments([]);
+  };
+
+  const handleTextClear = () => {
+    setTextInput('');
+    localStorage.removeItem(TEXT_CACHE_KEY);
   };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -157,16 +169,28 @@ export default function Home() {
                   className="text-input-textarea"
                   placeholder="Paste or type your text here…"
                   value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
+                  onChange={(e) => {
+                    setTextInput(e.target.value);
+                    localStorage.setItem(TEXT_CACHE_KEY, e.target.value);
+                  }}
                   rows={12}
                 />
-                <button
-                  className="drop-btn text-load-btn"
-                  onClick={handleTextLoad}
-                  disabled={!textInput.trim()}
-                >
-                  Process Text
-                </button>
+                <div className="text-input-actions">
+                  <button
+                    className="drop-btn text-load-btn"
+                    onClick={handleTextLoad}
+                    disabled={!textInput.trim()}
+                  >
+                    Process Text
+                  </button>
+                  <button
+                    className="drop-btn text-clear-btn"
+                    onClick={handleTextClear}
+                    disabled={!textInput.trim()}
+                  >
+                    Clear
+                  </button>
+                </div>
               </div>
             )}
           </div>
