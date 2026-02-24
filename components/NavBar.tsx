@@ -36,7 +36,7 @@ export default function NavBar() {
   const popRef = useRef<HTMLDivElement | null>(null);
   const [mounted, setMounted] = useState(false);
   const avatarRef = useRef<HTMLButtonElement | null>(null);
-  const [popPos, setPopPos] = useState<{ x: number } | null>(null);
+  const [popPos, setPopPos] = useState<{ x: number; y: number } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   // Load browser voices
@@ -133,7 +133,15 @@ export default function NavBar() {
             onClick={(e) => {
               e.stopPropagation();
               const rect = avatarRef.current?.getBoundingClientRect();
-              setPopPos(rect ? { x: Math.round(rect.left + rect.width / 2) } : null);
+              if (rect) {
+                const placeAbove = rect.top > window.innerHeight / 2;
+                const y = placeAbove
+                  ? Math.max(8, Math.round(rect.top - 320))
+                  : Math.round(rect.bottom + 8);
+                setPopPos({ x: Math.round(rect.left + rect.width / 2), y });
+              } else {
+                setPopPos(null);
+              }
               setVoiceTab(ttsEngine); // open on the currently active engine's tab
               setVoiceSearch('');
               setOpen(v => !v);
@@ -153,7 +161,7 @@ export default function NavBar() {
               style={{
                 position: 'fixed',
                 left: popPos ? `${popPos.x}px` : '8px',
-                bottom: '80px',
+                top: popPos ? `${popPos.y}px` : '72px',
                 zIndex: 99999,
               }}
             >

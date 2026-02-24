@@ -22,7 +22,7 @@
   background: var(--card-bg);
   border: 1px dashed var(--card-border);
   border-radius: 8px;
-  padding: 3rem;
+  padding: 12px;
   /* matches p-12 */
   display: flex;
   flex-direction: column;
@@ -43,7 +43,6 @@
 }
 
 .drop-btn {
-  margin-top: 1rem;
   padding: 0.5rem 1rem;
   background: var(--primary-bg);
   color: var(--primary-contrast);
@@ -85,8 +84,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  padding-bottom: 84px;
-  /* reserve space for persistent audio bar */
+  padding-top: 84px;
+  padding-bottom: 16px;
+  /* reserve space for top-fixed desktop bar */
 }
 
 /* PDF highlighting styles */
@@ -145,15 +145,15 @@ nr-sentence.playing {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  top: 0;
   height: 72px;
   background: var(--audio-bg);
-  border-top: 1px solid var(--audio-border);
+  border-bottom: 1px solid var(--audio-border);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
-  box-shadow: 0 -6px 24px rgba(11, 22, 43, 0.04);
+  box-shadow: 0 6px 24px rgba(11, 22, 43, 0.04);
 }
 
 .audio-bar-inner {
@@ -220,6 +220,10 @@ nr-sentence.playing {
 .bar-btn:focus-visible {
   outline: 2px solid var(--primary-bg);
   outline-offset: 2px;
+}
+
+.zoom-btn-bar {
+  font-weight: 700;
 }
 
 .audio-controls {
@@ -300,7 +304,8 @@ nr-sentence.playing {
 .the-pdf-viewer.centered {
   min-height: calc(100vh - 84px);
   display: flex;
-  align-items: center;
+  /* align-items: center; */
+  margin-top: 20px;
   justify-content: center;
 }
 
@@ -339,7 +344,6 @@ nr-sentence.playing {
 .voice-popover,
 .api-popover {
   position: fixed;
-  bottom: 80px;
   z-index: 99999;
 }
 
@@ -520,6 +524,46 @@ nr-sentence.playing {
   line-height: 1.5;
 }
 
+/* Homepage hero */
+.hero-copy {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto 20px;
+  text-align: center;
+  padding: 0 8px;
+}
+
+.hero-title {
+  font-size: clamp(1.5rem, 3.2vw, 2.2rem);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 10px;
+}
+
+.hero-subtitle {
+  font-size: 1rem;
+  color: var(--muted);
+  max-width: 680px;
+  margin: 0 auto 20px;
+}
+
+.hero-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.hero-pill {
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--foreground);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
 /* Zoom toolbar for PDF viewer */
 .zoom-toolbar {
   position: absolute;
@@ -567,46 +611,31 @@ nr-sentence.playing {
 }
 
 /* ────────────────────────────────────────────────────────
-   Input mode tabs
+   Input layout
    ──────────────────────────────────────────────────────── */
 .input-container {
   width: 100%;
-  max-width: 640px;
+  max-width: 980px;
 }
 
-.mode-tabs {
-  display: flex;
-  gap: 0;
-  margin-bottom: 12px;
-  border-radius: 10px;
-  overflow: hidden;
+.input-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.input-section-label {
+  align-self: flex-start;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
-}
-
-.mode-tab {
-  flex: 1;
-  padding: 10px 16px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
   color: var(--muted);
-  transition: all 0.15s ease;
-}
-
-.mode-tab.active {
-  background: var(--primary-bg);
-  color: var(--primary-contrast);
-}
-
-.mode-tab:not(.active):hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-[data-theme="dark"] .mode-tab:not(.active):hover {
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 /* ────────────────────────────────────────────────────────
@@ -616,6 +645,10 @@ nr-sentence.playing {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .text-input-textarea {
@@ -647,6 +680,10 @@ nr-sentence.playing {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+}
+
+.text-input-actions .drop-btn {
+  margin-top: 0;
 }
 
 .text-load-btn:disabled,
@@ -708,15 +745,39 @@ nr-sentence.playing {
    ──────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   body {
-    padding-bottom: 72px;
+    padding-top: 72px;
+    padding-bottom: 16px;
   }
 
   .audio-bar {
+    top: 0;
+    bottom: auto;
     height: 64px;
+    border-top: none;
+    border-bottom: 1px solid var(--audio-border);
+    box-shadow: 0 6px 24px rgba(11, 22, 43, 0.04);
   }
 
   .audio-bar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .audio-left,
+  .audio-controls,
+  .audio-right {
+    position: static;
+    transform: none;
+    top: auto;
+    left: auto;
+    z-index: 200;
+  }
+
+  .audio-left,
+  .audio-controls {
     gap: 4px;
   }
 
@@ -744,9 +805,8 @@ nr-sentence.playing {
     gap: 4px;
   }
 
-  /* Hide zoom buttons on mobile */
-  .zoom-btn-bar {
-    display: none;
+  .audio-right>div {
+    gap: 4px !important;
   }
 
   .the-pdf-viewer {
@@ -773,6 +833,19 @@ nr-sentence.playing {
   .text-viewer {
     padding: 16px;
     font-size: 15px;
+  }
+
+  .hero-copy {
+    margin-bottom: 14px;
+  }
+
+  .hero-subtitle {
+    font-size: 0.94rem;
+  }
+
+  .hero-pill {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 
   .voice-popover .popover-content {

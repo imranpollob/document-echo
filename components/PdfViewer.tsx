@@ -304,7 +304,6 @@ export const PdfViewer = ({ file }: PdfViewerProps) => {
       const sentenceElement = target.closest('nr-sentence');
       if (sentenceElement) {
         const segmentIndex = parseInt(sentenceElement.getAttribute('data-na-sen-ind') || '-1', 10);
-
         playSegment(segmentIndex);
       }
     };

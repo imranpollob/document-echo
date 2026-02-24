@@ -20,19 +20,17 @@ export default function Home() {
 
   const TEXT_CACHE_KEY = 'document-echo-text-input';
 
-  const [inputMode, setInputMode] = useState<'pdf' | 'text'>('pdf');
-  const [textInput, setTextInput] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(TEXT_CACHE_KEY) ?? '';
-    }
-    return '';
-  });
+  const [textInput, setTextInput] = useState('');
   const [textLoaded, setTextLoaded] = useState(false);
+
+  useEffect(() => {
+    const cached = localStorage.getItem(TEXT_CACHE_KEY);
+    if (cached) setTextInput(cached);
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
-      setInputMode('pdf');
       setTextLoaded(false);
     }
   };
@@ -59,7 +57,6 @@ export default function Home() {
   useEffect(() => {
     if (!file && segments.length === 0) {
       setTextLoaded(false);
-      setInputMode('pdf');
     }
   }, [file, segments]);
 
@@ -104,7 +101,6 @@ export default function Home() {
     setDragActive(false);
     if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
-      setInputMode('pdf');
       setTextLoaded(false);
     }
   };
@@ -119,30 +115,21 @@ export default function Home() {
     setDragActive(false);
   };
 
-  const showEmptyState = inputMode === 'pdf' ? !file : !textLoaded;
+  const showEmptyState = !file && !textLoaded;
 
   return (
     <main className="flex flex-col items-center">
       <div className={`the-pdf-viewer w-full ${showEmptyState ? 'centered' : ''}`} style={{ maxWidth: `${pdfMaxWidth}px` }}>
         {showEmptyState ? (
           <div className="input-container">
-            {/* Mode tabs */}
-            <div className="mode-tabs">
-              <button
-                className={`mode-tab ${inputMode === 'pdf' ? 'active' : ''}`}
-                onClick={() => setInputMode('pdf')}
-              >
-                📄 PDF
-              </button>
-              <button
-                className={`mode-tab ${inputMode === 'text' ? 'active' : ''}`}
-                onClick={() => setInputMode('text')}
-              >
-                ✏️ Text
-              </button>
-            </div>
+            <section className="hero-copy" aria-label="Document Echo overview">
+              <h1 className="hero-title">Document Echo</h1>
+              <p className="hero-subtitle">
+                Upload a PDF or paste text, then click any sentence to hear natural speech with synced highlighting.
+              </p>
+            </section>
 
-            {inputMode === 'pdf' ? (
+            <div className="input-grid" aria-label="Input options">
               <div
                 className={`drop-area ${dragActive ? 'drag-active' : ''}`}
                 onClick={handleDropAreaClick}
@@ -153,6 +140,7 @@ export default function Home() {
                 role="button"
                 tabIndex={0}
               >
+                <div className="input-section-label">PDF Upload</div>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -160,8 +148,8 @@ export default function Home() {
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                 />
-                <div className="text-lg font-semibold">Choose file or drag and drop a PDF here</div>
-                <div className="text-sm drop-muted">Click to browse or drop a PDF file</div>
+                <div className="text-lg font-semibold">Drag and drop a PDF here</div>
+                <div className="text-sm drop-muted">Or click to browse from your device</div>
                 <button
                   className="drop-btn"
                   onClick={(e) => {
@@ -169,11 +157,12 @@ export default function Home() {
                     handleDropAreaClick();
                   }}
                 >
-                  Choose File
+                  Upload PDF
                 </button>
               </div>
-            ) : (
+
               <div className="text-input-area">
+                <div className="input-section-label">Paste Text</div>
                 <textarea
                   className="text-input-textarea"
                   placeholder="Paste or type your text here…"
@@ -190,20 +179,20 @@ export default function Home() {
                     onClick={handleTextLoad}
                     disabled={!textInput.trim()}
                   >
-                    Process Text
+                    Read Text
                   </button>
                   <button
                     className="drop-btn text-clear-btn"
                     onClick={handleTextClear}
                     disabled={!textInput.trim()}
                   >
-                    Clear
+                    Clear Text
                   </button>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        ) : inputMode === 'pdf' && file ? (
+        ) : file ? (
           <>
             <PdfViewer file={file} />
             <div className="resizer" role="separator" aria-orientation="vertical" />
@@ -212,7 +201,7 @@ export default function Home() {
           <div className="text-viewer-wrapper">
             <div className="text-viewer-toolbar">
               <button className="drop-btn" onClick={handleTextEdit}>
-                ✏️ Edit Text
+                ✏️ Back to Editor
               </button>
             </div>
             <TextViewer />
